@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="author" content="Dr Gurunath Parale, MD DM FACC FCSI FICP — Interventional Cardiologist, Solapur">
+<meta name="description" content="Discharge Summary AI — developed by Dr Gurunath Parale. Photograph an existing hospital discharge summary and regenerate it with ICD-10 coded diagnoses, date-wise investigations, a patient-language page and a diet prescription.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discharge Summary AI — by Dr Gurunath Parale</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Kannada:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}catch(e){}</script>
+<style>
+:root{
+  --teal-900:#0b3f3a; --teal-800:#0f5c54; --teal-700:#0f766e; --teal-600:#128577;
+  --teal-100:#d7efec; --teal-50:#f0f9f8;
+  --slate-900:#0f172a; --slate-700:#334155; --slate-600:#475569; --slate-400:#94a3b8;
+  --slate-200:#e2e8f0; --slate-100:#f1f5f9; --slate-50:#f8fafc;
+  --ok:#15803d; --ok-bg:#e8f6ec; --ok-br:#86c99b;
+  --warn:#b45309; --warn-bg:#fdf3e3; --warn-br:#e8b877;
+  --crit:#b91c1c; --crit-bg:#fdecec; --crit-br:#eb9b9b;
+  --gold:#b58b2c;
+  --page-w:210mm;
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-in:'Noto Sans Devanagari','Inter',system-ui,sans-serif;
+  --font-kn:'Noto Sans Kannada','Inter',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--slate-100);color:var(--slate-900);font-family:var(--font);-webkit-text-size-adjust:100%}
+body{padding:0 0 90px}
+a{color:var(--teal-700)}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+
+/* ---------- App chrome ---------- */
+.appbar{background:linear-gradient(110deg,var(--teal-900),var(--teal-700) 55%,#137a6b);color:#fff;padding:14px 0;box-shadow:0 2px 14px rgba(11,63,58,.28);position:sticky;top:0;z-index:60}
+.appbar .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-top:0;padding-bottom:0}
+.appbar .mark{width:46px;height:46px;border-radius:11px;background:rgba(255,255,255,.96);border:1px solid rgba(255,255,255,.4);display:grid;place-items:center;font-size:21px;flex:0 0 auto;overflow:hidden;padding:3px}
+.appbar .mark img{max-width:100%;max-height:100%;object-fit:contain;display:none}
+.appbar .mark img[src]{display:block}
+.appbar .mark img[src] + span{display:none}
+.appbar h1{font-size:1.18rem;font-weight:800;letter-spacing:-.3px;line-height:1.15}
+.appbar p{font-size:.76rem;color:#bfe6e0;font-weight:500;margin-top:2px}
+.appbar .byline{font-size:.8rem;color:#eafaf7;font-weight:600;margin-top:3px;letter-spacing:.1px}
+.appbar .byline b{color:#fff;font-weight:800}
+.appbar .brandtext{min-width:0}
+.appbar .spacer{flex:1}
+.appbar .ver{font-size:.68rem;background:rgba(255,255,255,.13);padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22)}
+
+.card{background:#fff;border:1px solid var(--slate-200);border-radius:16px;padding:18px;box-shadow:0 1px 3px rgba(15,23,42,.05);margin-bottom:16px}
+.card h2{font-size:1.02rem;font-weight:700;color:var(--teal-800);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.muted{color:var(--slate-600);font-size:.85rem}
+
+/* ---------- Upload ---------- */
+.drop{border:2px dashed #9fcdc7;border-radius:16px;background:linear-gradient(180deg,var(--teal-50),#fff);padding:26px 18px;text-align:center;transition:.2s}
+.drop.drag{border-color:var(--teal-700);background:var(--teal-100)}
+.drop .big{font-size:2.4rem;line-height:1}
+.drop h3{margin:8px 0 4px;font-size:1.05rem;color:var(--teal-900)}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.btn{border:0;border-radius:11px;padding:11px 18px;font-size:.92rem;font-weight:600;cursor:pointer;font-family:var(--font);display:inline-flex;align-items:center;gap:7px;transition:.15s;text-decoration:none}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--teal-700);color:#fff}.btn-primary:hover{background:var(--teal-800)}
+.btn-dark{background:var(--slate-900);color:#fff}
+.btn-ghost{background:#fff;color:var(--teal-800);border:1.5px solid var(--teal-700)}
+.btn-soft{background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200)}
+.btn-wa{background:#1fa855;color:#fff}.btn-wa:hover{background:#178943}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-lg{padding:14px 26px;font-size:1rem}
+input[type=file]{display:none}
+
+.gallery{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.thumb{position:relative;width:92px;height:118px;border-radius:10px;overflow:hidden;border:1px solid var(--slate-200);background:var(--slate-50)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .x{position:absolute;top:3px;right:3px;background:rgba(185,28,28,.92);color:#fff;border:0;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}
+.thumb .n{position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,.72);color:#fff;font-size:.66rem;text-align:center;padding:2px}
+
+.statusbar{margin-top:12px;display:none;align-items:center;gap:10px;background:var(--teal-50);border:1px solid var(--teal-100);border-radius:11px;padding:11px 14px;font-size:.88rem;color:var(--teal-900);font-weight:600}
+.statusbar.on{display:flex}
+.spin{width:17px;height:17px;border:2.5px solid var(--teal-100);border-top-color:var(--teal-700);border-radius:50%;animation:sp .8s linear infinite;flex:0 0 auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.errbox{display:none;margin-top:12px;background:var(--crit-bg);border:1px solid var(--crit-br);color:var(--crit);border-radius:11px;padding:12px 14px;font-size:.88rem;line-height:1.5}
+.errbox.on{display:block}
+
+.fieldrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.field label{display:block;font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--slate-600);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:9px 11px;border:1px solid var(--slate-200);border-radius:9px;font-family:var(--font);font-size:.9rem;background:#fff;color:var(--slate-900)}
+.field input:focus,.field select:focus{outline:2px solid var(--teal-100);border-color:var(--teal-700)}
+details.cfg summary{cursor:pointer;font-size:.85rem;color:var(--slate-600);font-weight:600;padding:4px 0}
+
+/* ---------- Tabs ---------- */
+.tabs{display:flex;gap:6px;background:#fff;border:1px solid var(--slate-200);padding:6px;border-radius:14px;margin-bottom:16px;overflow-x:auto}
+.tab{flex:1 1 auto;white-space:nowrap;border:0;background:transparent;padding:11px 14px;border-radius:10px;font-weight:700;font-size:.88rem;color:var(--slate-600);cursor:pointer;font-family:var(--font)}
+.tab.active{background:var(--teal-700);color:#fff}
+.tabpane{display:none}.tabpane.active{display:block}
+
+/* ---------- The printable document ---------- */
+.sheet{background:#fff;border:1px solid var(--slate-200);border-radius:14px;box-shadow:0 2px 12px rgba(15,23,42,.07);padding:16mm 14mm;margin:0 auto 18px;max-width:var(--page-w);font-size:10.5pt;line-height:1.45;color:#101a24}
+.sheet.lang-in{font-family:var(--font-in)}
+.sheet.lang-kn{font-family:var(--font-kn)}
+
+.dochead{border-bottom:3px solid var(--teal-700);padding-bottom:9px;margin-bottom:4px}
+.dochead .hname{font-size:15.5pt;font-weight:800;color:var(--teal-900);letter-spacing:-.2px;line-height:1.2}
+.dochead .haddr{font-size:8.6pt;color:var(--slate-600);margin-top:3px;line-height:1.45}
+.dochead .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.doctitle{background:var(--teal-700);color:#fff;text-align:center;font-weight:800;letter-spacing:2.4px;font-size:11pt;padding:6px;margin:0 0 12px;text-transform:uppercase}
+
+.ptgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--slate-200);border-radius:7px;overflow:hidden;margin-bottom:12px}
+.ptcell{padding:7px 10px;border-right:1px solid var(--slate-200);border-bottom:1px solid var(--slate-200);background:#fff}
+.ptcell:nth-child(4n){border-right:0}
+.ptcell .k{font-size:7.2pt;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--teal-700)}
+.ptcell .v{font-size:10pt;font-weight:600;color:var(--slate-900);margin-top:2px;word-break:break-word}
+.ptcell.wide{grid-column:span 2}
+.ptcell.full{grid-column:span 4;border-right:0}
+
+.datestrip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.dchip{border:1px solid var(--teal-100);background:var(--teal-50);border-radius:8px;padding:7px 10px;text-align:center}
+.dchip .k{font-size:7.2pt;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--teal-700)}
+.dchip .v{font-size:10.5pt;font-weight:800;color:var(--teal-900);margin-top:2px}
+
+h3.sect{font-size:9.6pt;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#fff;background:var(--slate-700);padding:5px 10px;border-radius:4px;margin:16px 0 9px;display:flex;align-items:center;gap:7px}
+h3.sect.teal{background:var(--teal-700)}
+h4.sub{font-size:9.2pt;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--teal-800);margin:12px 0 6px;padding-bottom:3px;border-bottom:1.5px solid var(--teal-100);display:flex;align-items:center;gap:6px}
+
+/* Diagnosis hero block */
+.dxblock{border:2.5px solid var(--teal-700);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.dxblock .hd{background:var(--teal-700);color:#fff;font-size:10pt;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:7px 12px;display:flex;align-items:center;gap:8px}
+.dxblock .bd{padding:11px 13px;background:var(--teal-50)}
+.dxitem{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed #b6dcd7;break-inside:avoid;page-break-inside:avoid}
+.dxitem:last-child{border-bottom:0}
+.dxnum{flex:0 0 auto;width:19px;height:19px;border-radius:50%;background:var(--teal-700);color:#fff;font-size:8pt;font-weight:800;display:grid;place-items:center;margin-top:2px}
+.dxtext{flex:1}
+.dxshort{font-size:11.5pt;font-weight:800;color:var(--teal-900);line-height:1.25}
+.dxfull{font-size:9.2pt;color:var(--slate-700);margin-top:2px;line-height:1.4}
+.icd{flex:0 0 auto;background:#fff;border:1.5px solid var(--teal-700);color:var(--teal-800);font-size:8.6pt;font-weight:800;padding:3px 9px;border-radius:5px;letter-spacing:.4px;white-space:nowrap;margin-top:2px}
+.icd.none{border-color:var(--slate-200);color:var(--slate-400)}
+.dxtag{display:inline-block;font-size:7.4pt;font-weight:800;letter-spacing:.6px;text-transform:uppercase;background:var(--gold);color:#fff;padding:2px 7px;border-radius:4px;margin-left:7px;vertical-align:1px}
+
+/* Tables */
+table.t{width:100%;border-collapse:collapse;font-size:9.1pt;margin-bottom:10px}
+table.t th{background:var(--slate-100);color:var(--teal-900);font-size:7.8pt;font-weight:800;letter-spacing:.7px;text-transform:uppercase;text-align:left;padding:6px 8px;border:1px solid var(--slate-200)}
+table.t td{padding:6px 8px;border:1px solid var(--slate-200);vertical-align:top}
+table.t tr{break-inside:avoid;page-break-inside:avoid}
+table.t tbody tr:nth-child(even) td{background:var(--slate-50)}
+.nm{font-weight:700;color:var(--slate-900)}
+.ref{font-size:8.2pt;color:var(--slate-600);white-space:nowrap}
+
+/* Result chips (date-wise) */
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.rchip{display:inline-flex;align-items:baseline;gap:5px;border-radius:5px;padding:2px 7px;font-size:8.4pt;border:1px solid;white-space:nowrap;line-height:1.35}
+.rchip .d{font-size:7.2pt;font-weight:700;opacity:.82;letter-spacing:.2px}
+.rchip .val{font-weight:800;font-size:9pt}
+.rchip.normal{background:var(--ok-bg);border-color:var(--ok-br);color:var(--ok)}
+.rchip.abnormal{background:var(--warn-bg);border-color:var(--warn-br);color:var(--warn)}
+.rchip.critical{background:var(--crit-bg);border-color:var(--crit-br);color:var(--crit)}
+.rchip.unknown{background:var(--slate-50);border-color:var(--slate-200);color:var(--slate-600)}
+.arrow{font-weight:800;font-size:8.6pt}
+
+.badge{display:inline-block;font-size:7pt;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:2px 5px;border-radius:4px;border:1px solid;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;hyphens:none}
+.badge.normal{background:var(--ok-bg);border-color:var(--ok-br);color:var(--ok)}
+.badge.abnormal{background:var(--warn-bg);border-color:var(--warn-br);color:var(--warn)}
+.badge.critical{background:var(--crit-bg);border-color:var(--crit-br);color:var(--crit)}
+.badge.unknown{background:var(--slate-50);border-color:var(--slate-200);color:var(--slate-600)}
+
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:7.8pt;color:var(--slate-600);margin:-2px 0 9px;align-items:center}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:-1px;border:1px solid}
+.legend .n i{background:var(--ok-bg);border-color:var(--ok-br)}
+.legend .a i{background:var(--warn-bg);border-color:var(--warn-br)}
+.legend .c i{background:var(--crit-bg);border-color:var(--crit-br)}
+
+/* Status-post strip under the diagnosis list */
+.dxpost{margin-top:9px;padding-top:8px;border-top:1.5px solid #b6dcd7;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.dxpost .lbl{font-size:7.4pt;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--teal-700)}
+.dxpost .pchip{background:#fff;border:1.5px solid var(--teal-700);border-radius:5px;padding:3px 9px;font-size:9pt;font-weight:700;color:var(--teal-900);display:inline-flex;align-items:center;gap:7px}
+.dxpost .pchip b{font-size:7.8pt;background:var(--teal-50);border:1px solid var(--teal-100);border-radius:3px;padding:1px 5px;color:var(--teal-800)}
+.dxpost .see{font-size:7.8pt;color:var(--slate-600);font-style:italic}
+
+/* Date-matrix lab table */
+.tscroll{overflow-x:auto;margin-bottom:10px}
+table.labmx{margin-bottom:0;min-width:100%}
+table.labmx th .yr{font-size:6.4pt;font-weight:600;letter-spacing:0;color:var(--slate-600);text-transform:none;margin-top:1px}
+table.labmx th{vertical-align:bottom;white-space:nowrap}
+table.labmx td.mx{text-align:center;font-weight:800;font-size:9.2pt;white-space:nowrap;padding:5px 4px}
+table.labmx td.mx .a{font-size:8pt;margin-left:2px}
+table.labmx td.mx.normal{background:var(--ok-bg)!important;color:var(--ok)}
+table.labmx td.mx.abnormal{background:var(--warn-bg)!important;color:var(--warn)}
+table.labmx td.mx.critical{background:var(--crit-bg)!important;color:var(--crit);box-shadow:inset 0 0 0 1.5px var(--crit-br)}
+table.labmx td.mx.unknown{background:var(--slate-50)!important;color:var(--slate-600)}
+table.labmx td.mx.none{background:#fff!important;color:#cbd5e1;font-weight:400}
+table.labmx tbody tr:nth-child(even) td.mx.none{background:var(--slate-50)!important}
+table.labmx tr.panelrow td{background:var(--teal-50)!important;color:var(--teal-800);font-size:7.4pt;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 8px}
+
+/* Repeated imaging / special studies inside one card */
+.imgcard .ntimes{font-size:7.2pt;font-weight:800;letter-spacing:.5px;text-transform:uppercase;background:var(--teal-700);color:#fff;padding:2px 7px;border-radius:4px;margin-left:7px;vertical-align:2px}
+.imgcard .study.multi{border-top:1px dashed var(--slate-200);margin-top:7px;padding-top:6px}
+.imgcard .study.multi:first-of-type{border-top:0;margin-top:2px;padding-top:0}
+.imgcard .sdate{font-size:8.4pt;font-weight:800;color:var(--teal-800);margin-bottom:3px;display:flex;align-items:center;gap:8px}
+
+/* Imaging / special cards */
+.imgcard{border:1px solid var(--slate-200);border-left:4px solid var(--teal-700);border-radius:7px;padding:9px 12px;margin-bottom:9px;background:#fff;break-inside:avoid}
+.imgcard .hdr{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:5px;flex-wrap:wrap}
+.imgcard .ttl{font-size:10pt;font-weight:800;color:var(--teal-900)}
+.imgcard .dt{font-size:8.2pt;font-weight:700;color:var(--slate-600)}
+.imgcard ul{margin:3px 0 0 16px;font-size:9.2pt;line-height:1.5}
+.imgcard .imp{margin-top:6px;background:var(--teal-50);border-radius:5px;padding:6px 9px;font-size:9.2pt}
+.imgcard .imp b{color:var(--teal-800)}
+
+/* Procedure + implant */
+.proc{border:1px solid var(--teal-100);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.proc .ph{background:var(--teal-50);padding:8px 12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--teal-100)}
+.proc .pn{font-size:10.5pt;font-weight:800;color:var(--teal-900)}
+.proc .pb{padding:9px 12px;font-size:9.3pt}
+.proc ul{margin-left:16px;line-height:1.55}
+.implant{margin-top:8px;border:1.5px solid var(--gold);border-radius:7px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+.implant .ih{background:#fbf5e8;color:#7a5c18;font-size:8pt;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:5px 10px;border-bottom:1px solid #eadcbb}
+.implant .ig{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.implant .ic{padding:6px 10px;border-right:1px solid #eadcbb;border-bottom:1px solid #eadcbb}
+.implant .ic:nth-child(3n){border-right:0}
+.implant .ic .k{font-size:7pt;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#a07d28}
+.implant .ic .v{font-size:9.4pt;font-weight:700;color:#3d2f0c;margin-top:1px;word-break:break-word}
+
+/* Rx table */
+table.rx th{background:var(--teal-700);color:#fff;border-color:var(--teal-600)}
+table.rx td{font-size:9.2pt}
+table.rx td:first-child{white-space:nowrap;text-align:center}
+.gen{font-size:8.4pt;color:var(--teal-800);font-weight:600;font-style:italic;display:block;margin-top:1px}
+.dose{font-family:'Inter',monospace;font-weight:800;font-size:10pt;letter-spacing:1px;color:var(--slate-900);text-align:center;white-space:nowrap}
+.purpose{font-size:8.4pt;color:var(--slate-600)}
+.interact{border:1px solid var(--warn-br);background:var(--warn-bg);border-radius:7px;padding:8px 11px;font-size:8.8pt;color:#7c3d05;margin-bottom:10px;line-height:1.5}
+.interact b{color:var(--warn)}
+
+/* Follow-up */
+.fu{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;margin-bottom:12px;break-inside:avoid}
+.fu.solo{grid-template-columns:1fr}
+.fu.solo .fubox .b{columns:2;column-gap:20px}
+.fu.solo .fubox .b>*{break-inside:avoid}
+.fubox{border:1.5px solid var(--teal-700);border-radius:8px;overflow:hidden}
+.fubox .h{background:var(--teal-700);color:#fff;font-size:8.2pt;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;padding:5px 10px}
+.fubox .b{padding:9px 11px;font-size:9.2pt;line-height:1.55}
+.fubox ul{margin-left:15px}
+.fubox.red{border-color:var(--crit)}
+.fubox.red .h{background:var(--crit)}
+.fudate{font-size:12.5pt;font-weight:800;color:var(--teal-900);letter-spacing:-.2px}
+
+.summary-txt{font-size:9.6pt;line-height:1.62;text-align:justify;background:var(--slate-50);border-left:3px solid var(--teal-700);border-radius:0 6px 6px 0;padding:10px 13px}
+
+.sig{margin-top:18px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-top:1.5px solid var(--slate-200);padding-top:10px;break-inside:avoid}
+.sig .l{font-size:8.2pt;color:var(--slate-600);line-height:1.5}
+.sig .r{text-align:right}
+.sig .r .nm2{font-size:10pt;font-weight:800;color:var(--slate-900);border-top:1px solid var(--slate-400);padding-top:4px;margin-top:26px;min-width:190px}
+.sig .r .q{font-size:8pt;color:var(--slate-600)}
+.credit{margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:7.6pt;color:var(--slate-400);border-top:1px dashed var(--slate-200);padding-top:7px}
+.credit img{height:17px;width:auto;opacity:.85;border-radius:3px}
+
+.pending{background:var(--teal-50);border:1px dashed var(--teal-700);color:var(--teal-800);border-radius:9px;padding:10px 14px;font-size:9.6pt;font-weight:700;margin:10px 0 4px;text-align:center}
+@media print{.pending{display:none}}
+
+/* Emergency care block */
+h3.sect.red{background:var(--crit)}
+.emg{display:grid;grid-template-columns:1.1fr 1fr;gap:10px;margin-bottom:12px}
+.ebox{border:1.5px solid var(--crit);border-radius:8px;overflow:hidden;break-inside:avoid}
+.ebox .h{background:var(--crit);color:#fff;font-size:8.2pt;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;padding:5px 10px}
+.ebox .b{padding:9px 11px;font-size:9.2pt;line-height:1.55}
+.ebox ul{margin-left:15px}
+.ebox.how{border-color:var(--teal-700)}
+.ebox.how .h{background:var(--teal-700)}
+.ebox .tel{font-size:13pt;font-weight:800;color:var(--crit);letter-spacing:.2px;line-height:1.25;margin-bottom:3px}
+.ebox .tel.amb{font-size:10.5pt;color:var(--teal-800)}
+.ebox .avail{font-size:8.4pt;font-weight:700;color:var(--teal-800);background:var(--teal-50);display:inline-block;padding:2px 8px;border-radius:4px;margin-bottom:5px}
+.ebox .addr,.ebox .carry{margin-top:6px;font-size:8.8pt;padding-top:5px;border-top:1px dashed var(--slate-200)}
+
+/* Treatment given during the stay */
+ul.tgiven{margin:0 0 10px 18px;font-size:9.4pt;line-height:1.6}
+.summary-txt.synth{margin-top:9px;border-left-color:var(--gold);background:#fdfaf2}
+
+/* Acknowledgement of receipt */
+.ack{display:grid;grid-template-columns:1.4fr 1fr 1.2fr 1fr;gap:0;border:1px solid var(--slate-200);border-radius:7px;overflow:hidden;margin-top:10px;break-inside:avoid}
+.ack .akc{padding:6px 10px;border-right:1px solid var(--slate-200)}
+.ack .akc:last-child{border-right:0}
+.ack .akc .k{font-size:6.8pt;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--teal-700)}
+.ack .akc .v{font-size:9.4pt;font-weight:600;color:var(--slate-900);margin-top:2px;min-height:15px}
+.ack .akc .v.sigline{border-bottom:1px dotted var(--slate-400);min-height:17px}
+
+/* Language switcher on the patient / diet sheets */
+.langbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--slate-50);border:1px solid var(--slate-200);border-radius:10px;padding:7px 10px;margin:10px 0 12px}
+.langbar .lbl{font-size:7.4pt;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--slate-600);margin-right:3px}
+.langbar .lpill{border:1.5px solid var(--slate-200);background:#fff;color:var(--slate-700);border-radius:999px;padding:5px 13px;font-size:9.4pt;font-weight:700;cursor:pointer;font-family:var(--font-in);display:inline-flex;align-items:baseline;gap:5px;transition:.15s}
+.langbar .lpill i{font-family:var(--font);font-style:normal;font-size:7.6pt;font-weight:600;opacity:.65}
+.langbar .lpill:hover{border-color:var(--teal-700);color:var(--teal-800)}
+.langbar .lpill.on{background:var(--teal-700);border-color:var(--teal-700);color:#fff}
+.langbar .lpill.on i{opacity:.85}
+
+/* Patient page */
+.pp-hero{background:linear-gradient(115deg,var(--teal-800),var(--teal-600));color:#fff;border-radius:11px;padding:14px 16px;margin-bottom:13px}
+.pp-hero .t{font-size:14pt;font-weight:800;line-height:1.25}
+.pp-hero .s{font-size:9.4pt;opacity:.92;margin-top:4px}
+.pp-sec{border:1px solid var(--slate-200);border-radius:9px;margin-bottom:11px;overflow:hidden;break-inside:avoid}
+.pp-sec .h{background:var(--teal-50);color:var(--teal-900);font-size:10.5pt;font-weight:800;padding:8px 12px;border-bottom:1px solid var(--teal-100);display:flex;gap:8px;align-items:center}
+.pp-sec .b{padding:10px 13px;font-size:10.5pt;line-height:1.75}
+.pp-sec ul{margin-left:18px}
+.pp-sec li{margin-bottom:5px}
+.sevbar{display:flex;align-items:center;gap:10px;margin:2px 0 10px}
+.sevpill{flex:1;height:9px;border-radius:5px;background:var(--slate-200)}
+.sevpill.on.mild{background:var(--ok)}.sevpill.on.mod{background:#d97706}.sevpill.on.sev{background:var(--crit)}
+.sevlabel{font-size:10pt;font-weight:800}
+.do-dont{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ddbox{border-radius:8px;padding:9px 12px;font-size:10pt;line-height:1.7}
+.ddbox.do{background:var(--ok-bg);border:1px solid var(--ok-br)}
+.ddbox.dont{background:var(--crit-bg);border:1px solid var(--crit-br)}
+.ddbox h5{font-size:10pt;margin-bottom:5px}
+.ddbox.do h5{color:var(--ok)}.ddbox.dont h5{color:var(--crit)}
+.ddbox ul{margin-left:17px}
+.medstrip{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+.medpill{background:#fff;border:1.5px solid var(--teal-700);color:var(--teal-900);border-radius:999px;padding:4px 12px;font-size:9.6pt;font-weight:700}
+
+/* Diet page */
+.dietgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:12px}
+.dbox{border-radius:9px;padding:10px 13px;font-size:9.6pt;line-height:1.65}
+.dbox h5{font-size:10pt;font-weight:800;margin-bottom:6px;display:flex;gap:7px;align-items:center}
+.dbox ul{margin-left:17px}
+.dbox li{margin-bottom:3px}
+.dbox.avoid{background:var(--crit-bg);border:1px solid var(--crit-br)}.dbox.avoid h5{color:var(--crit)}
+.dbox.eat{background:var(--ok-bg);border:1px solid var(--ok-br)}.dbox.eat h5{color:var(--ok)}
+.meals{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px}
+.meal{border:1px solid var(--slate-200);border-radius:8px;overflow:hidden;break-inside:avoid}
+.meal .h{background:var(--teal-700);color:#fff;font-size:8.4pt;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:5px 9px;text-align:center}
+.meal .b{padding:8px 10px;font-size:9.2pt;line-height:1.6}
+.meal ul{margin-left:15px}
+.limits{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px}
+.limit{border:1.5px solid var(--teal-700);border-radius:8px;padding:9px;text-align:center;background:var(--teal-50)}
+.limit .k{font-size:7.6pt;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--teal-700)}
+.limit .v{font-size:12pt;font-weight:800;color:var(--teal-900);margin-top:3px;line-height:1.25}
+.limit .s{font-size:8pt;color:var(--slate-600);margin-top:2px}
+
+/* Edit mode — every word on the sheet is editable */
+.edit-on .sheet{box-shadow:0 0 0 2px var(--teal-100),0 2px 12px rgba(15,23,42,.07)}
+.edit-on [data-edit]{outline:1px dashed #6fbdb3;outline-offset:2px;border-radius:3px;background:#f2fbfa;cursor:text;min-width:14px;display:inline-block}
+.edit-on [data-edit]:focus{outline:2px solid var(--teal-700);background:#fff}
+.edit-on .sheet:focus,.edit-on .sheet *:focus{outline-color:var(--teal-700)}
+.editnote{display:none;background:var(--teal-50);border:1px solid var(--teal-100);border-radius:9px;padding:10px 14px;font-size:.84rem;color:var(--teal-900);margin-bottom:12px;font-weight:600;line-height:1.6}
+.edit-on .editnote{display:block}
+.rowtool{display:none}
+.edit-on .rowtool{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
+.rowtool button{border:0;border-radius:4px;width:19px;height:19px;font-size:12px;line-height:1;cursor:pointer;font-weight:800;padding:0}
+.rowtool .del{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit-br)}
+.rowtool .dup{background:var(--teal-50);color:var(--teal-800);border:1px solid var(--teal-100)}
+.addrow{display:none}
+.edit-on .addrow{display:inline-flex;align-items:center;gap:6px;background:var(--teal-50);border:1px dashed var(--teal-700);color:var(--teal-800);border-radius:7px;padding:5px 11px;font-size:8.6pt;font-weight:700;cursor:pointer;margin:-4px 0 12px;font-family:var(--font)}
+@media print{.rowtool,.addrow{display:none!important}}
+
+/* Action bar */
+.actionbar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-top:1px solid var(--slate-200);padding:10px 16px;display:none;gap:9px;flex-wrap:wrap;justify-content:center;z-index:55;box-shadow:0 -3px 16px rgba(15,23,42,.08)}
+.actionbar.on{display:flex}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.6);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
+.modal.on{display:flex}
+.modal .box{background:#fff;border-radius:16px;max-width:430px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.modal h3{font-size:1.05rem;font-weight:800;color:var(--teal-900);margin-bottom:5px}
+.modal p{font-size:.86rem;color:var(--slate-600);margin-bottom:14px}
+.modal .btn{width:100%;justify-content:center;margin-bottom:8px}
+.toast{position:fixed;top:78px;right:18px;z-index:300;background:var(--slate-900);color:#fff;border-radius:12px;padding:13px 17px;font-size:.84rem;line-height:1.55;max-width:400px;box-shadow:0 14px 32px rgba(0,0,0,.35);opacity:0;transform:translateY(-12px);transition:.25s;pointer-events:none}
+.toast.on{opacity:1;transform:none;pointer-events:auto}
+.toast b{color:#5eead4}
+
+@media(max-width:760px){
+  .sheet{padding:10mm 7mm;font-size:10pt;border-radius:10px}
+  .ptgrid{grid-template-columns:repeat(2,1fr)}
+  .ptcell:nth-child(4n){border-right:1px solid var(--slate-200)}
+  .ptcell:nth-child(2n){border-right:0}
+  .ptcell.wide,.ptcell.full{grid-column:span 2}
+  .datestrip{grid-template-columns:repeat(2,1fr)}
+  .fu,.do-dont,.dietgrid,.emg{grid-template-columns:1fr}
+  .ack{grid-template-columns:1fr 1fr}
+  .ack .akc:nth-child(2n){border-right:0}
+  .meals,.limits,.implant .ig{grid-template-columns:1fr 1fr}
+  .appbar h1{font-size:1rem}
+  .appbar .byline{font-size:.72rem;line-height:1.35}
+  .appbar .byline .q{display:none}
+  .appbar .brandtext p:last-child{display:none}
+  .appbar .mark{width:40px;height:40px}
+  .toast{top:auto;bottom:calc(100% - 160px);left:12px;right:12px;max-width:none}
+  .actionbar .btn{flex:1 1 44%;justify-content:center;font-size:.84rem;padding:11px 8px}
+  /* keep wide clinical tables inside the phone screen */
+  table.t{font-size:8.4pt;table-layout:fixed}
+  table.t th,table.t td{padding:5px 6px;word-break:break-word;overflow-wrap:anywhere}
+  .ref,.dose,.badge,.rchip{white-space:normal}
+  .rchip{max-width:100%}
+  .chips{gap:4px}
+  .sheet{overflow-x:hidden}
+  table.labmx{table-layout:auto;min-width:580px}
+  table.labmx td,table.labmx th{white-space:nowrap;word-break:normal}
+  .implant .ig{grid-template-columns:1fr}
+  .implant .ic{border-right:0}
+  .meals{grid-template-columns:1fr}
+  .limits{grid-template-columns:1fr 1fr}
+}
+
+/* ---------- PRINT ---------- */
+@page{size:A4;margin:11mm 10mm}
+@media print{
+  html,body{background:#fff!important}
+  body{padding:0!important}
+  .appbar,.actionbar,.tabs,.card,.editnote,.modal,.toast,.noprint{display:none!important}
+  .wrap{max-width:none;padding:0;margin:0}
+  .tabpane{display:block!important}
+  .sheet{box-shadow:none!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;max-width:none!important;width:100%!important}
+  /* each of the three sheets starts on a fresh page */
+  #panePt .sheet,#paneDiet .sheet{page-break-before:always;break-before:page}
+  .sheet.skip-print{display:none!important}
+  h3.sect,h4.sub,.doctitle,.dxblock .hd,table.t th,table.rx th,.meal .h,.pp-hero,.pp-sec .h,.fubox .h,.implant .ih{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .tscroll{overflow:visible!important}
+  table.labmx{min-width:0!important;table-layout:auto}
+  .imgcard,.fu,.sig,.meal,.dxitem,.implant,.limit,.dchip,.dxpost,.study,table.t tr{break-inside:avoid;page-break-inside:avoid}
+  .proc .ph,.dxblock .hd{break-after:avoid;page-break-after:avoid}
+  .pp-sec{break-inside:auto}
+  h3.sect,h4.sub{break-after:avoid;page-break-after:avoid}
+}
+</style>
+</head>
+<body>
+
+<header class="appbar noprint">
+  <div class="wrap">
+    <div class="mark"><img id="brandLogo" alt=""><span id="brandFallback">🩺</span></div>
+    <div class="brandtext">
+      <h1>Discharge Summary AI</h1>
+      <p class="byline">Developed by <b>Dr Gurunath Parale</b> · MD, DM, FACC, FCSI, FICP — Interventional Cardiologist, Solapur</p>
+      <p>Photograph an old summary → get a clean, coded, patient-ready one</p>
+    </div>
+    <div class="spacer"></div>
+    <span class="ver">v2026-09-20-A2</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ===== INPUT ===== -->
+  <section class="card noprint" id="inputCard">
+    <h2>📄 Step 1 — Capture the existing discharge summary</h2>
+    <div class="drop" id="drop">
+      <div class="big">📸</div>
+      <h3>Take a photo, or upload pages / PDF</h3>
+      <p class="muted">Add every page — summary sheet, investigation sheet, angiography report. Multi-page PDFs are split automatically.</p>
+      <div class="btnrow">
+        <button class="btn btn-primary" id="camBtn">📷 Take Photo</button>
+        <button class="btn btn-ghost" id="fileBtn">📁 Choose Files / PDF</button>
+      </div>
+      <input type="file" id="camInput" accept="image/*" capture="environment">
+      <input type="file" id="fileInput" accept="image/*,application/pdf" multiple>
+    </div>
+    <div class="gallery" id="gallery"></div>
+
+    <div style="margin-top:16px" class="fieldrow">
+      <div class="field">
+        <label>Patient's language (patient page)</label>
+        <select id="langSel">
+          <option value="mr" selected>मराठी — Marathi</option>
+          <option value="hi">हिंदी — Hindi</option>
+          <option value="kn">ಕನ್ನಡ — Kannada</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Consultant signing this summary</label>
+        <input type="text" id="signDoc" placeholder="Dr Gurunath Parale">
+      </div>
+      <div class="field">
+        <label>Qualification / designation</label>
+        <input type="text" id="signQual" placeholder="MD, DM, FACC — Interventional Cardiologist">
+      </div>
+      <div class="field">
+        <label>Patient / relative WhatsApp no.</label>
+        <input type="tel" id="ptWa" placeholder="9876543210">
+      </div>
+    </div>
+
+    <details class="cfg" style="margin-top:14px">
+      <summary>⚙️ AI settings (optional — only if the shared key is exhausted)</summary>
+      <div class="fieldrow" style="margin-top:10px">
+        <div class="field" style="grid-column:1/-1">
+          <label>Your own Google Gemini API key</label>
+          <input type="password" id="apiKey" placeholder="Leave blank to use the built-in key">
+          <p class="muted" style="margin-top:6px">Free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. Stored only in this browser.</p>
+        </div>
+      </div>
+    </details>
+
+    <div style="margin-top:18px;text-align:center">
+      <button class="btn btn-primary btn-lg" id="goBtn" disabled>✨ Generate Discharge Summary</button>
+    </div>
+    <div class="statusbar" id="statusBar"><span class="spin"></span><span id="statusTxt">Working…</span></div>
+    <div class="errbox" id="errBox"></div>
+  </section>
+
+  <!-- ===== OUTPUT ===== -->
+  <div id="output" style="display:none">
+    <div class="tabs noprint">
+      <button class="tab active" data-pane="paneDoc">📋 Discharge Summary</button>
+      <button class="tab" data-pane="panePt">🧑 Patient Page</button>
+      <button class="tab" data-pane="paneDiet">🥗 Diet & Lifestyle</button>
+    </div>
+
+    <div class="editnote noprint">✏️ <b>Edit mode is on — every line on these pages is editable.</b> Click anywhere and type to correct a name, dose, value or sentence. Use <b>⧉</b> to duplicate a row, <b>×</b> to delete one, and <b>＋ Add row</b> at the end of a table. Everything you change flows straight into the print, PDF, Word and WhatsApp copies.</div>
+
+    <div class="tabpane active" id="paneDoc"><div class="sheet" id="sheetDoc"></div></div>
+    <div class="tabpane" id="panePt"><div class="sheet" id="sheetPt"></div></div>
+    <div class="tabpane" id="paneDiet"><div class="sheet" id="sheetDiet"></div></div>
+  </div>
+</main>
+
+<!-- ===== ACTION BAR ===== -->
+<div class="actionbar noprint" id="actionBar">
+  <button class="btn btn-soft" id="editBtn">✏️ Edit fields</button>
+  <button class="btn btn-dark" id="printBtn">🖨️ Print all 3 pages</button>
+  <button class="btn btn-primary" id="pdfBtn">⬇️ Download PDF</button>
+  <button class="btn btn-ghost" id="docBtn">📝 Editable Word</button>
+  <button class="btn btn-wa" id="waDocBtn">💬 WhatsApp — Summary</button>
+  <button class="btn btn-wa" id="waPtBtn">💬 WhatsApp — Patient</button>
+  <button class="btn btn-soft" id="waBtn">💬 Other…</button>
+  <button class="btn btn-soft" id="resetBtn">↺ New patient</button>
+</div>
+
+<!-- ===== MODALS ===== -->
+<div class="modal" id="pickModal">
+  <div class="box">
+    <h3 id="pickTitle">Which page?</h3>
+    <p id="pickSub">Choose what to send or save.</p>
+    <div id="pickBody"></div>
+    <button class="btn btn-soft" id="pickCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="modal" id="waModal">
+  <div class="box">
+    <h3>💬 Send on WhatsApp</h3>
+    <p id="waWho" style="margin-bottom:6px"></p>
+    <p id="waFileName" style="font-weight:600;color:var(--teal-800)"></p>
+    <div class="field" style="margin-bottom:14px">
+      <label>WhatsApp number (with or without +91)</label>
+      <input type="tel" id="waNum" placeholder="9876543210">
+    </div>
+    <button class="btn btn-wa" id="waAttach">📎 Attach PDF &amp; Send</button>
+    <button class="btn btn-ghost" id="waText">💬 Open chat (text only)</button>
+    <button class="btn btn-soft" id="waCancel">Cancel</button>
+    <p class="muted" style="margin-top:10px;margin-bottom:0;font-size:.78rem">On a phone the PDF attaches directly. On desktop the PDF is downloaded first — then attach it in WhatsApp with 📎 → Document.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   0.  CONSTANTS & STORAGE
+   ============================================================ */
+const KEY_POOL = ["b64:QUl6YVN5QkVHcXJWQzg5Z3pfSUdCU2JtUzB2OGZmTG94UDdaRnNB"];
+const MODELS   = ['gemini-2.5-flash','gemini-3.6-flash','gemini-3.5-flash','gemini-flash-latest'];
+const SPANDAN_LOGO = "data:image/png;base64,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";
+
+function dec(k){ if(!k) return ""; try{ if(k.startsWith("b64:")) return atob(k.slice(4)); }catch(e){} return k; }
+const store = {
+  get(k){ try{ return localStorage.getItem(k)||""; }catch(e){ return (this._m||{})[k]||""; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ this._m=this._m||{}; this._m[k]=v; } }
+};
+
+const $  = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const has = v => v!=null && String(v).trim()!=="" && String(v).trim()!=="-";
+const arr = v => Array.isArray(v)?v.filter(x=>x!=null&&x!==""):[];
+
+const LANGS = {
+  mr:{name:'मराठी', font:'lang-in', label:'Marathi'},
+  hi:{name:'हिंदी', font:'lang-in', label:'Hindi'},
+  kn:{name:'ಕನ್ನಡ', font:'lang-kn', label:'Kannada'},
+  en:{name:'English', font:'', label:'English'}
+};
+
+let files = [];      // captured page images
+let DATA  = null;    // extraction JSON
+let EXTRA = null;    // patient + diet JSON
+let editMode = false;
+
+/* ============================================================
+   1.  UI HELPERS
+   ============================================================ */
+function toast(html, ms){
+  const t=$('toast'); t.innerHTML=html; t.classList.add('on');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms||6000);
+}
+function status(txt, on){
+  const b=$('statusBar'); $('statusTxt').textContent=txt;
+  b.classList.toggle('on', on!==false);
+}
+function showErr(html){
+  const e=$('errBox'); e.innerHTML=html; e.classList.add('on');
+  status('',false);
+}
+function clearErr(){ $('errBox').classList.remove('on'); }
+
+/* ============================================================
+   2.  IMAGE CAPTURE / COMPRESSION / PDF SPLIT
+   ============================================================ */
+function compress(file, maxDim, q){
+  maxDim=maxDim||2200; q=q||0.9;
+  if(file._c) return Promise.resolve(file);
+  return new Promise(res=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.width,h=img.height;
+      if(w>maxDim||h>maxDim){ if(w>h){h=Math.round(h*maxDim/w);w=maxDim;} else {w=Math.round(w*maxDim/h);h=maxDim;} }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(b=>{
+        if(!b) return res(file);
+        const f=new File([b], file.name||'page.jpg', {type:'image/jpeg'}); f._c=true; res(f);
+      },'image/jpeg',q);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); res(file); };
+    img.src=url;
+  });
+}
+
+async function addFiles(list){
+  if(!list||!list.length) return;
+  status('Processing pages…');
+  const out=[];
+  for(const f of Array.from(list)){
+    const isPdf = f.type==='application/pdf' || /\.pdf$/i.test(f.name);
+    if(isPdf && window.pdfjsLib){
+      try{
+        const buf=await f.arrayBuffer();
+        const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+        for(let p=1;p<=pdf.numPages;p++){
+          const page=await pdf.getPage(p);
+          const vp=page.getViewport({scale:2.0});
+          const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+          await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+          const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
+          c.width=1;c.height=1;
+          if(blob){ const pf=new File([blob], f.name.replace(/\.pdf$/i,'')+'_p'+p+'.jpg',{type:'image/jpeg'}); pf._c=true; out.push(pf); }
+        }
+        continue;
+      }catch(e){ console.warn('pdf split failed',e); }
+    }
+    out.push(await compress(f,2200,0.92));
+  }
+  files = files.concat(out);
+  renderGallery();
+  status('', false);
+}
+
+function renderGallery(){
+  const g=$('gallery'); g.innerHTML='';
+  files.forEach((f,i)=>{
+    const d=document.createElement('div'); d.className='thumb';
+    const im=document.createElement('img'); im.src=URL.createObjectURL(f); im.onload=()=>URL.revokeObjectURL(im.src);
+    const x=document.createElement('button'); x.className='x'; x.textContent='×';
+    x.onclick=()=>{ files.splice(i,1); renderGallery(); };
+    const n=document.createElement('div'); n.className='n'; n.textContent='Page '+(i+1);
+    d.append(im,x,n); g.appendChild(d);
+  });
+  $('goBtn').disabled = files.length===0;
+  if(files.length) $('goBtn').textContent = '✨ Generate Summary from '+files.length+' page'+(files.length>1?'s':'');
+}
+
+function b64(file){
+  return new Promise(async (res,rej)=>{
+    const f = file._c ? file : await compress(file,2200,0.92);
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=rej;
+    r.readAsDataURL(f);
+  });
+}
+
+/* ============================================================
+   3.  GEMINI CALL
+   ============================================================ */
+async function gemini(parts, sysText, maxTok){
+  const userKey = $('apiKey').value.trim() || store.get('dsai_key');
+  if(userKey) store.set('dsai_key', userKey);
+  const pool = userKey ? [userKey, ...KEY_POOL] : KEY_POOL;
+  let lastErr='', rateLimited=false, badKey=false;
+
+  for(const rawK of pool){
+    const key = dec(rawK);
+    for(const model of MODELS){
+      try{
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(key),{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            system_instruction:{parts:[{text:sysText}]},
+            contents:[{parts:parts}],
+            generationConfig:{ temperature:0.15, topP:0.9, maxOutputTokens:maxTok||32768, responseMimeType:'application/json' }
+          })
+        });
+        if(r.ok){
+          const j = await r.json();
+          const txt = (((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text || '';
+          if(!txt) throw new Error('Empty AI response — please retake a clearer photo.');
+          return txt;
+        }
+        const e = await r.json().catch(()=>({}));
+        lastErr = (e.error&&e.error.message) || ('HTTP '+r.status);
+        const le = lastErr.toLowerCase();
+        if(r.status===429 || le.includes('quota') || le.includes('rate limit') || le.includes('resource_exhausted')){ rateLimited=true; break; }
+        if(r.status===401 || r.status===403 || le.includes('api key') || le.includes('unauthenticated')){ badKey=true; break; }
+        if(r.status===404 || le.includes('not found')) continue;
+      }catch(err){ lastErr = err.message || 'Network error'; }
+      await new Promise(r=>setTimeout(r,120));
+    }
+  }
+  if(badKey)      throw new Error('The API key was rejected. Open <b>AI settings</b> above and paste a valid Gemini key.');
+  if(rateLimited) throw new Error('The shared API key has hit its daily limit. Open <b>AI settings</b> above and paste your own free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.');
+  throw new Error('Could not reach the AI service: '+esc(lastErr));
+}
+
+function parseJSON(txt){
+  let t = String(txt).trim();
+  t = t.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+  const a=t.indexOf('{'), b=t.lastIndexOf('}');
+  if(a>=0 && b>a) t = t.slice(a,b+1);
+  try{ return JSON.parse(t); }
+  catch(e){
+    try{ return JSON.parse(t.replace(/,\s*([}\]])/g,'$1')); }
+    catch(e2){ throw new Error('The AI returned an unreadable result. Please tap Generate again.'); }
+  }
+}
+
+/* ============================================================
+   4.  PROMPTS
+   ============================================================ */
+const SYS_EXTRACT = "You are a senior hospital medical-records officer and consultant physician preparing a formal, publication-quality discharge summary. You read photographed hospital paperwork, transcribe every clinical detail faithfully, and organise it. You never invent clinical values. You output STRICT JSON only, matching the requested schema exactly, with no commentary.";
+
+function extractPrompt(n){ return `
+I am sending ${n} photograph(s) of a patient's existing hospital discharge summary and its investigation sheets. Read EVERY page carefully (including handwritten notes, tables and margins) and rebuild the record as structured JSON.
+
+ABSOLUTE RULES
+1. Transcribe values EXACTLY as printed. Never invent a value, date, drug or dose. If something is not on the paper, use "" (empty string) or omit the array entry — never guess.
+2. Dates: output as "DD-MMM-YYYY" (e.g. "27-Aug-2026"). If only a partial date is legible, give what is legible.
+3. ICD-10 codes: you MAY supply the correct ICD-10-CM code from your own medical knowledge for each diagnosis — this is coding, not clinical invention. If you are not confident, use "" for icd10.
+4. Generic names: supply the correct generic (INN) name for every brand drug you recognise (e.g. Brilianta → Ticagrelor, Ecosprin → Aspirin, Storvas → Atorvastatin, Dytor → Torsemide, Nikoran → Nicorandil, Azmarda → Sacubitril+Valsartan, Ivabarde → Ivabradine, Cordarone → Amiodarone, Pantocid → Pantoprazole, Urimax D → Tamsulosin+Dutasteride, Reclide → Gliclazide, Nitrocontin → Nitroglycerin/GTN, Lantus → Insulin Glargine, Novorapid/Novarpid → Insulin Aspart). If unrecognised, use "".
+5. Lab investigations repeated on more than one date MUST appear as ONE entry with several objects inside "results" — one object for EVERY date the test was performed, in chronological order. Do not drop a repeat because the value was unchanged or normal; every dated value printed on the paper must appear. Give the date on every result object. The same applies to imaging and special investigations: a study repeated on another date is a separate object in its array using the SAME "name", so they can be grouped date-wise.
+5b. DE-DUPLICATE THE DIAGNOSIS LIST. The old summary usually strings everything into one run-on line and repeats itself — "ACS with LVF with tight proximal LAD lesion ... with severe LV dysfunction with PTCA/Stent ... with DM with HTN". Break that into distinct clinical entities and state each ONE time only:
+   - Never list the same condition twice under different wording (e.g. "Left ventricular failure" and "LVF" and "severe left ventricular dysfunction" are ONE entry — pick the fullest form).
+   - Never put a procedure or an operation in "diagnoses" (no PTCA, stent, angioplasty, CABG, pacemaker, device closure, surgery). Those belong ONLY in "procedures". The single exception is a Z-code status entry, and only when the procedure was done at a PREVIOUS admission, not this one.
+   - A finding that is part of a diagnosis already listed (e.g. "tight proximal LAD lesion" under acute coronary syndrome, "left dominant circulation") is an angiographic finding — put it in the procedure's "findings", not in "diagnoses".
+   - Order: primary diagnosis first, then the other active problems, then comorbidities (DM, HTN), then metabolic issues (hyponatraemia).
+6. Status classification for every lab result:
+   - "critical" = life-threatening / needs urgent action (e.g. Na <125 or >155, K <2.8 or >6.0, NT-proBNP grossly raised in heart failure, Troponin clearly positive, Hb <7, creatinine markedly raised).
+   - "abnormal" = outside the reference range but not immediately dangerous.
+   - "normal" = within the reference range.
+   - "unknown" = cannot be classified.
+   Also give "flag": "high", "low" or "".
+7. Split investigations into exactly three groups:
+   - "lab": blood, urine, and all bench/biochemistry/haematology/serology tests.
+   - "imaging": echocardiography, X-ray, ultrasound, CT, MRI, Doppler, nuclear scans.
+   - "special": ECG, coronary angiography, PTCA/angioplasty, cardiac catheterisation, TMT, Holter, EP study, endoscopy, biopsy/histopathology, pulmonary function tests.
+8. "comorbidities" must use ONLY these tokens where present: diabetes, hypertension, heart_failure, cad, ckd, dyslipidemia, obesity, anemia, thyroid, copd, stroke, liver_disease, gout, hyponatremia, elderly, post_pci, af, smoker.
+9. If a stent or implant was used, fill "implant" with everything printed on the sticker (make, model, size, GTIN, LOT/batch, expiry).
+10. Flag only clinically meaningful drug interactions in the discharge prescription. If none, return an empty array.
+
+OUTPUT EXACTLY THIS JSON SHAPE (no extra keys, no markdown):
+{
+ "hospital": {"name":"","line1":"","line2":"","phone":"","email":"","website":"","regNo":"","accreditation":""},
+ "patient": {"name":"","age":"","sex":"","ipdNo":"","opdNo":"","ward":"","consultant":"","surgeon":"","referredBy":"","address":"","relativeName":"","relativeRelation":""},
+ "stay": {"admission":"","operation":"","discharge":"","lengthOfStay":"","conditionOnDischarge":"","bpAdmission":"","bpDischarge":"","pulse":"","presentingComplaint":""},
+ "diagnoses": [{"short":"","full":"","icd10":"","icdTitle":"","primary":true}],
+ "procedures": [{"name":"","date":"","operator":"","findings":[""],"impression":"","implant":{"make":"","model":"","size":"","gtin":"","lot":"","expiry":"","vessel":""}}],
+ "investigations": {
+   "lab":[{"name":"","unit":"","refRange":"","panel":"","results":[{"date":"","value":"","status":"normal|abnormal|critical|unknown","flag":"high|low|"}]}],
+   "imaging":[{"name":"","date":"","findings":[""],"impression":"","status":"normal|abnormal|critical|unknown"}],
+   "special":[{"name":"","date":"","findings":[""],"impression":"","status":"normal|abnormal|critical|unknown"}]
+ },
+ "hospitalCourse":"",
+ "clinicalSummary":"",
+ "treatmentGiven":[""],
+ "prescription":[{"brand":"","generic":"","strength":"","form":"Tab|Cap|Inj|Syp|Drop|Other","schedule":"","timing":"","duration":"","purpose":"","route":""}],
+ "interactions":[{"drugs":[""],"severity":"minor|moderate|major","note":""}],
+ "followUp":{"intervalText":"","date":"","testsToRepeat":[""],"instructions":[""],"warningSigns":[""],"emergencyContact":""},
+ "emergency":{"when":[""],"how":[""],"casualtyPhone":"","ambulance":"","hospitalAddress":"","carryWith":[""],"availability":""},
+ "comorbidities":[""],
+ "advice":[""],
+ "pageCount":${n},
+ "unreadable":[""]
+}
+
+NOTES ON SPECIFIC FIELDS
+- "schedule": the morning-afternoon-night pattern as printed, normalised to a clean form such as "1-0-1", "1/2-0-1/2", "0-1-0", or for insulin "10U-10U-10U".
+- "timing": "Before food", "After food", "Bedtime", "Empty stomach" etc. if stated or clinically standard; otherwise "".
+- "purpose": a 2-5 word plain reason, e.g. "Blood thinner after stent", "Controls heart failure".
+- "hospitalCourse": a FULL formal narrative of the admission — do not abbreviate it. Write 8 to 14 sentences in continuous prose, in this order: (a) how the patient presented and in what state, with the admission vitals; (b) what the initial investigations showed, naming the actual abnormal values; (c) the medical treatment and supportive care given on the ward, including how any electrolyte or glycaemic derangement was corrected; (d) the indication for the procedure and what the procedure showed and achieved; (e) the post-procedure course, any complication or its absence, and the response to treatment; (f) the state of the patient at discharge with the discharge vitals. Never compress this into two or three lines — this paragraph is the medico-legal record of the admission.
+- "clinicalSummary": a separate 3-5 sentence synthesis for the referring doctor — diagnosis, what was done, key residual problems, what the GP must watch.
+- "treatmentGiven": the significant treatment given DURING the stay (drips, diuretics, insulin infusion, sodium correction, antiplatelet loading, oxygen, inotropes etc.), one short line each, as far as the paper records it. Leave the array empty if the paper does not say.
+- "followUp.intervalText": e.g. "After 15 days".
+- "followUp.date": compute the actual calendar date from the discharge date + the stated interval, if an interval is stated.
+- "emergency": transcribe the hospital's own emergency instructions from the paper — most Indian discharge summaries carry a "When to obtain Emergency Care" line and a "How to obtain Emergency care" line with a casualty telephone number. Put the paper's own words first, then ADD the clinically standard red flags for this particular diagnosis so the list is genuinely useful:
+   - "when": the symptoms that must bring the patient straight back (be specific and physical, e.g. "chest pain lasting more than 5 minutes or not relieved by one sublingual nitrate", "breathlessness at rest or on lying flat", "weight gain of 2 kg in 3 days", "fainting or a pulse below 45", "black stools or bleeding that will not stop", "blood sugar below 70 mg/dL with sweating or confusion").
+   - "how": the practical steps — whom to telephone, where to go, which entrance, whether to come directly without an appointment.
+   - "casualtyPhone": the casualty / emergency number exactly as printed, including any extension.
+   - "ambulance": an ambulance number if one is printed.
+   - "hospitalAddress": where to come, if stated.
+   - "carryWith": what to bring — this discharge summary, the current medicine strips, the stent card, previous reports.
+   - "availability": e.g. "Casualty open 24 hours, 7 days".
+- "unreadable": short notes on anything you genuinely could not read, so the doctor can fill it in manually.
+`; }
+
+const SYS_PATIENT = "You are a warm, careful cardiologist's assistant who explains a hospital admission to a patient and their family in their own everyday spoken language, and writes an evidence-based Indian therapeutic diet prescription. You never frighten, never over-promise, never invent clinical values, and you keep the language at the level of an ordinary person with no medical schooling. Output STRICT JSON only.";
+
+function patientPrompt(d, langCode){
+  const L = LANGS[langCode] || LANGS.mr;
+  return `
+Here is the structured clinical record of a patient who has just been discharged:
+
+${JSON.stringify(d).slice(0, 26000)}
+
+Produce TWO things as one JSON object.
+
+PART A — a patient-and-family explanation, written in BOTH:
+  • "en" = simple conversational English
+  • "loc" = simple everyday spoken ${L.label} (${L.name}) — the way a person actually talks at home, NOT formal textbook ${L.label}. Use the ${L.label} script.
+Both versions must say the same things. No medical jargon; where a medical word is unavoidable, explain it in one short phrase.
+
+PART B — a therapeutic diet and lifestyle prescription built specifically around this patient's comorbidities (${(d.comorbidities||[]).join(', ') || 'as found in the record'}), age (${d.patient&&d.patient.age||'?'}), and Indian (Maharashtra / Solapur) eating habits. Use real Indian foods by their common names. Keep every line specific and actionable — quantities, not vague advice. Respect all comorbidities together: if heart failure and CKD are both present, salt and fluid and potassium all matter; if diabetes is present, carbohydrate quality matters; if hyponatraemia occurred, say so plainly.
+
+OUTPUT EXACTLY THIS JSON (no markdown, no commentary):
+{
+ "patient": {
+   "en": {
+     "title":"",
+     "subtitle":"",
+     "whatHappened":"",
+     "whatWasDone":"",
+     "severity":"mild|moderate|severe",
+     "severityWord":"",
+     "severityExplain":"",
+     "testFindings":[{"what":"","meaning":"","tone":"good|watch|serious"}],
+     "medicineWhy":"",
+     "keyMedicines":[{"name":"","why":""}],
+     "neverStop":"",
+     "dos":[""],
+     "donts":[""],
+     "warningSigns":[""],
+     "followUp":"",
+     "closing":""
+   },
+   "loc": { ...identical keys, written in ${L.name}... }
+ },
+ "diet": {
+   "headline":"",
+   "basis":"",
+   "avoid":[""],
+   "eat":[""],
+   "meals":{"earlyMorning":[""],"breakfast":[""],"midMorning":[""],"lunch":[""],"evening":[""],"dinner":[""]},
+   "limits":{"salt":"","fluid":"","calories":"","protein":"","potassium":"","sugar":""},
+   "exercise":{"type":"","intensity":"","duration":"","progression":"","cautions":[""]},
+   "lifestyle":[""],
+   "monitoring":[""],
+   "localHeadline":"",
+   "localAvoid":[""],
+   "localEat":[""],
+   "localTips":[""]
+ }
+}
+
+RULES
+- "severity" must reflect the real record (e.g. severe LV dysfunction + left main/proximal LAD disease at age 90 = "severe").
+- "testFindings": pick the 4-8 findings that actually matter to the patient. "tone" = good / watch / serious.
+- "keyMedicines": every discharge drug, named by the brand on the prescription, each with a one-line everyday reason.
+- "warningSigns": specific, e.g. "chest pain that does not settle in 5 minutes", "breathlessness on lying flat", "swelling of both feet", "weight gain of 2 kg in 3 days".
+- "limits" values must be concrete, e.g. salt "Less than 3 g a day (about ½ teaspoon)", fluid "1.5 litres a day including tea, milk and water".
+- "localAvoid", "localEat", "localTips": the same dietary content written in ${L.name} so the family can read it directly.
+- Use "" or [] where genuinely not applicable. Never leave a key out.
+`;
+}
+
+/* ============================================================
+   5.  RENDER — DISCHARGE SUMMARY SHEET
+   ============================================================ */
+const E = (v, ph) => '<span data-edit contenteditable="false">'+esc(has(v)?v:(ph||'—'))+'</span>';
+
+function fmtHospital(h){
+  h=h||{};
+  const lines=[h.line1,h.line2].filter(has).join(' · ');
+  const contact=[has(h.phone)?'Ph: '+h.phone:'', has(h.email)?h.email:'', has(h.website)?h.website:''].filter(Boolean).join('  ·  ');
+  return `<div class="dochead">
+    <div class="top">
+      <div style="flex:1">
+        <div class="hname">${E(h.name,'Hospital name')}</div>
+        ${lines?'<div class="haddr">'+E(lines)+'</div>':''}
+        ${contact?'<div class="haddr">'+esc(contact)+'</div>':''}
+      </div>
+      <div style="text-align:right;font-size:7.8pt;color:var(--slate-600);line-height:1.5">
+        ${has(h.regNo)?'<div>Reg. No. '+esc(h.regNo)+'</div>':''}
+        ${has(h.accreditation)?'<div>'+esc(h.accreditation)+'</div>':''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function cell(k,v,cls){ return '<div class="ptcell '+(cls||'')+'"><div class="k">'+esc(k)+'</div><div class="v">'+E(v)+'</div></div>'; }
+
+/* ---- de-duplication helpers -------------------------------------------- */
+function norm(s){
+  return String(s||'').toLowerCase()
+    .replace(/[^a-z0-9 ]+/g,' ')
+    .replace(/\b(with|and|the|of|a|an|to|for|on|in|status|post|s p|left|right)\b/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+const PROC_RE = /(ptca|pci|angioplasty|stent|stenting|cabg|bypass graft|pacemaker|icd implant|crt|valvotomy|valvuloplasty|tavi|tavr|ablation|device closure|implantation|surgery|operated|operation|status post|s\/p)/i;
+function isProcedureText(d){
+  const t = (d.short||'')+' '+(d.full||'');
+  if(/^Z/i.test(String(d.icd10||'').trim())) return true;   // Z-codes = status/history, not an active diagnosis
+  return PROC_RE.test(t);
+}
+/* two entries are the same if one normalised string contains the other */
+function sameEntity(a,b){
+  const x=norm(a), y=norm(b);
+  if(!x||!y) return false;
+  if(x===y) return true;
+  const s=x.length<y.length?x:y, l=x.length<y.length?y:x;
+  return s.length>=6 && l.indexOf(s)>=0;
+}
+/* Keep each clinical entity once. Procedures are pulled out of the diagnosis
+   list entirely — they belong to the Procedures section. */
+function splitDiagnoses(list, procedures){
+  const dx=[], post=[];
+  arr(list).forEach(d=>{
+    const key=[d.short,d.full].filter(has).join(' ');
+    if(!has(key)) return;
+    const bucket = isProcedureText(d) ? post : dx;
+    const dupIn = a => a.some(e=>sameEntity([e.short,e.full].filter(has).join(' '), key) || (has(e.icd10)&&e.icd10===d.icd10));
+    if(dupIn(dx)||dupIn(post)) return;
+    bucket.push(d);
+  });
+  // Anything already written out under Procedures (an angiographic finding or the
+  // procedure's own impression) must not be repeated as a numbered diagnosis —
+  // except the primary diagnosis, which always stays.
+  const procText=[];
+  arr(procedures).forEach(p=>{ arr(p.findings).forEach(f=>procText.push(f)); if(has(p.impression)) procText.push(p.impression); });
+  // Only anatomical/lesion fragments are dropped this way — a clinical syndrome such as
+  // left ventricular failure stays a diagnosis even if the angiogram also mentions it.
+  const LESION_RE = /(lesion|stenos|occlus|dominant circulation|hypokinesi|akinesi|thrombus|vessel disease|\bsvd\b|\bdvd\b|\btvd\b|collateral|ectasia)/i;
+  const kept = dx.filter((d,i)=>{
+    if(d.primary || i===0) return true;
+    const key=[d.short,d.full].filter(has).join(' ');
+    if(!LESION_RE.test(key)) return true;
+    return !procText.some(t=>sameEntity(t,key));
+  });
+  return {dx: kept.length?kept:dx, post};
+}
+
+function dxBlock(list, procedures){
+  const {dx, post} = splitDiagnoses(list, procedures);
+  if(!dx.length && !post.length) return '';
+  const rows = dx.map((d,i)=>`
+    <div class="dxitem">
+      <div class="dxnum">${i+1}</div>
+      <div class="dxtext">
+        <div class="dxshort">${E(d.short,'Diagnosis')}${d.primary?'<span class="dxtag">Primary</span>':''}</div>
+        ${has(d.full)&&norm(d.full)!==norm(d.short)?'<div class="dxfull">'+E(d.full)+'</div>':''}
+        ${has(d.icdTitle)?'<div class="dxfull" style="font-size:8.4pt;color:var(--slate-600)">ICD-10: '+esc(d.icdTitle)+'</div>':''}
+      </div>
+      <div class="icd${has(d.icd10)?'':' none'}">${esc(has(d.icd10)?d.icd10:'ICD —')}</div>
+    </div>`).join('');
+  const postStrip = post.length ? `<div class="dxpost">
+      <span class="lbl">Status post</span>
+      ${post.map(p=>'<span class="pchip">'+E(p.short||p.full)+(has(p.icd10)?'<b>'+esc(p.icd10)+'</b>':'')+'</span>').join('')}
+      <span class="see">→ full details in Procedures below</span>
+    </div>` : '';
+  return `<div class="dxblock">
+    <div class="hd">⬤ Final Diagnosis</div>
+    <div class="bd">${rows}${postStrip}</div>
+  </div>`;
+}
+
+function procBlock(list){
+  list = arr(list);
+  if(!list.length) return '';
+  return '<h3 class="sect teal">⚕ Procedures &amp; Operative Details</h3>' + list.map(p=>{
+    const im = p.implant||{};
+    const hasIm = ['make','model','size','gtin','lot','expiry','vessel'].some(k=>has(im[k]));
+    const imCells = [['Make / Brand',im.make],['Model / Type',im.model],['Size',im.size],['Target vessel',im.vessel],['GTIN',im.gtin],['LOT / Batch',im.lot],['Expiry',im.expiry]]
+      .filter(x=>has(x[1])).map(x=>'<div class="ic"><div class="k">'+esc(x[0])+'</div><div class="v">'+E(x[1])+'</div></div>').join('');
+    return `<div class="proc">
+      <div class="ph">
+        <div class="pn">${E(p.name,'Procedure')}</div>
+        <div style="font-size:8.6pt;color:var(--slate-600);font-weight:700">${has(p.date)?'📅 '+esc(p.date):''}${has(p.operator)?'&nbsp;&nbsp;·&nbsp;&nbsp;'+esc(p.operator):''}</div>
+      </div>
+      <div class="pb">
+        ${arr(p.findings).length?'<b style="color:var(--teal-800);font-size:8.6pt;letter-spacing:.6px">FINDINGS</b><ul>'+arr(p.findings).map(f=>'<li>'+E(f)+'</li>').join('')+'</ul>':''}
+        ${has(p.impression)?'<div class="imp" style="margin-top:7px"><b>Impression:</b> '+E(p.impression)+'</div>':''}
+        ${hasIm?'<div class="implant"><div class="ih">🔩 Implant / Device Details</div><div class="ig">'+imCells+'</div></div>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---- date handling ------------------------------------------------------ */
+const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+function dnum(s){
+  s=String(s||'').trim(); if(!s) return Infinity;
+  let m=s.match(/^(\d{1,2})[-\/\s]([A-Za-z]{3,})[-\/\s](\d{2,4})$/);
+  if(m){ const mo=MON[m[2].slice(0,3).toLowerCase()]; if(mo!=null) return new Date(+m[3]<100?2000+ +m[3]:+m[3], mo, +m[1]).getTime(); }
+  m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+  if(m) return new Date(+m[3]<100?2000+ +m[3]:+m[3], +m[2]-1, +m[1]).getTime();
+  const t=Date.parse(s); return isNaN(t)?Infinity:t;
+}
+function shortDate(s){
+  const t=dnum(s); if(!isFinite(t)) return String(s||'—');
+  const d=new Date(t); return ('0'+d.getDate()).slice(-2)+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+}
+
+/* Every investigation, every date — one column per date, one row per test,
+   grouped by panel. A test done once shows a value in its date column only. */
+function labTable(list){
+  list = arr(list);
+  if(!list.length) return '';
+  const dates=[];
+  list.forEach(t=>arr(t.results).forEach(r=>{
+    const d=String(r.date||'').trim()||'—';
+    if(!dates.some(x=>x.raw===d)) dates.push({raw:d, t:dnum(d)});
+  }));
+  dates.sort((a,b)=>a.t-b.t);
+
+  const head = '<tr><th style="width:23%">Investigation</th><th style="width:14%">Reference</th>'
+    + dates.map(d=>'<th style="text-align:center">'+esc(shortDate(d.raw))+'<div class="yr">'+esc(String(d.raw).replace(/^\d{1,2}[-\/\s][A-Za-z]{3,}[-\/\s]/,''))+'</div></th>').join('')
+    + '</tr>';
+
+  // group rows by panel, preserving first-seen order
+  const panels=[];
+  list.forEach(t=>{ const p=has(t.panel)?t.panel:'Other'; if(!panels.includes(p)) panels.push(p); });
+
+  let body='';
+  panels.forEach(p=>{
+    const tests=list.filter(t=>(has(t.panel)?t.panel:'Other')===p);
+    if(!tests.length) return;
+    if(panels.length>1) body += '<tr class="panelrow"><td colspan="'+(2+dates.length)+'">'+esc(p)+'</td></tr>';
+    tests.forEach(t=>{
+      const byDate={};
+      arr(t.results).forEach(r=>{ byDate[String(r.date||'').trim()||'—'] = r; });
+      const cells = dates.map(d=>{
+        const r=byDate[d.raw];
+        if(!r) return '<td class="mx none">·</td>';
+        const st=['normal','abnormal','critical'].includes(r.status)?r.status:'unknown';
+        const ar=r.flag==='high'?'▲':(r.flag==='low'?'▼':'');
+        return '<td class="mx '+st+'"><span class="v">'+esc(r.value)+'</span>'+(ar?'<span class="a">'+ar+'</span>':'')+'</td>';
+      }).join('');
+      body += '<tr><td class="nm">'+E(t.name,'Test')+(has(t.unit)?' <span class="ref">('+esc(t.unit)+')</span>':'')+'</td>'
+           +  '<td class="ref">'+esc(has(t.refRange)?t.refRange:'—')+'</td>'+cells+'</tr>';
+    });
+  });
+
+  return `<h4 class="sub">🧪 A. Laboratory Investigations</h4>
+  <div class="legend"><span class="n"><i></i>Normal</span><span class="a"><i></i>Abnormal</span><span class="c"><i></i>Critical</span><span>▲ high &nbsp; ▼ low &nbsp; · a dot means the test was not done on that date</span></div>
+  <div class="tscroll"><table class="t labmx"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+/* Imaging / special: the same investigation repeated on several dates becomes
+   ONE card with a dated block per study. */
+function cardList(list, title, icon){
+  list = arr(list);
+  if(!list.length) return '';
+  const groups=[];
+  list.forEach(x=>{
+    const g=groups.find(g=>sameEntity(g.name, x.name));
+    if(g) g.studies.push(x); else groups.push({name:x.name, studies:[x]});
+  });
+  const rank={critical:3,abnormal:2,normal:1,unknown:0};
+  const cards = groups.map(g=>{
+    g.studies.sort((a,b)=>dnum(a.date)-dnum(b.date));
+    const worst = g.studies.reduce((m,s)=>{
+      const st=['normal','abnormal','critical'].includes(s.status)?s.status:'unknown';
+      return rank[st]>rank[m]?st:m; },'unknown');
+    const multi = g.studies.length>1;
+    const blocks = g.studies.map(x=>{
+      const st=['normal','abnormal','critical'].includes(x.status)?x.status:'unknown';
+      return `<div class="study${multi?' multi':''}">
+        ${multi?'<div class="sdate">📅 '+esc(x.date||'—')+' <span class="badge '+st+'">'+(st==='unknown'?'—':st)+'</span></div>':''}
+        ${arr(x.findings).length?'<ul>'+arr(x.findings).map(f=>'<li>'+E(f)+'</li>').join('')+'</ul>':''}
+        ${has(x.impression)?'<div class="imp"><b>Impression:</b> '+E(x.impression)+'</div>':''}
+      </div>`;
+    }).join('');
+    const first=g.studies[0]||{}, last=g.studies[g.studies.length-1]||{};
+    const stTop=['normal','abnormal','critical'].includes(last.status)?last.status:'unknown';
+    return `<div class="imgcard" style="border-left-color:${worst==='critical'?'var(--crit)':worst==='abnormal'?'var(--warn)':worst==='normal'?'var(--ok)':'var(--slate-400)'}">
+      <div class="hdr">
+        <div class="ttl">${E(g.name,'Investigation')}${multi?'<span class="ntimes">'+g.studies.length+' studies</span>':''}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${multi ? '<span class="dt">📅 '+esc(first.date||'—')+' → '+esc(last.date||'—')+'</span>'
+                  : (has(first.date)?'<span class="dt">📅 '+esc(first.date)+'</span>':'')}
+          ${multi?'':'<span class="badge '+stTop+'">'+(stTop==='unknown'?'—':stTop)+'</span>'}
+        </div>
+      </div>
+      ${blocks}
+    </div>`;
+  }).join('');
+  return '<h4 class="sub">'+icon+' '+title+'</h4>'+cards;
+}
+
+function rxTable(list, interactions){
+  list = arr(list);
+  if(!list.length) return '';
+  const rows = list.map((m,i)=>`<tr>
+    <td style="text-align:center;color:var(--slate-600);font-weight:700">${i+1}</td>
+    <td><span class="nm">${esc(has(m.form)?m.form+'. ':'')}${esc(m.brand||m.generic||'')}</span>${has(m.strength)?' <b>'+esc(m.strength)+'</b>':''}${has(m.generic)&&m.generic!==m.brand?'<span class="gen">('+esc(m.generic)+')</span>':''}</td>
+    <td class="dose">${E(m.schedule,'—')}</td>
+    <td style="font-size:8.6pt">${esc(has(m.timing)?m.timing:'—')}</td>
+    <td style="font-size:8.6pt">${esc(has(m.duration)?m.duration:'Continue')}</td>
+    <td class="purpose">${E(m.purpose)}</td>
+  </tr>`).join('');
+  const inter = arr(interactions).map(x=>'<div class="interact"><b>⚠ '+esc((x.severity||'note').toUpperCase())+' — '+esc(arr(x.drugs).join(' + '))+':</b> '+esc(x.note)+'</div>').join('');
+  return `<h3 class="sect teal">℞ Discharge Prescription</h3>
+  <table class="t rx"><thead><tr><th style="width:5%">#</th><th style="width:29%">Drug (generic)</th><th style="width:13%;text-align:center">Morn–Aft–Night</th><th style="width:13%">Timing</th><th style="width:13%">Duration</th><th>Purpose</th></tr></thead><tbody>${rows}</tbody></table>
+  ${inter}
+  <div style="font-size:8.6pt;color:var(--crit);font-weight:700;margin-bottom:6px">⚠ Do not stop, change or add any medicine without the treating doctor's advice.</div>`;
+}
+
+function followUp(f, advice, emg){
+  f=f||{};
+  const tests=arr(f.testsToRepeat), ins=arr(f.instructions), warn=arr(f.warningSigns), adv=arr(advice);
+  // the red-flag list lives in the Emergency Care block below — don't print it twice
+  const emgOwnsWarnings = arr((emg||{}).when).length>0;
+  const showWarn = !emgOwnsWarnings && warn.length;
+  if(!has(f.intervalText)&&!has(f.date)&&!tests.length&&!warn.length&&!adv.length) return '';
+  return `<h3 class="sect">📅 Follow-up &amp; Advice</h3>
+  <div class="fu${emgOwnsWarnings?' solo':''}">
+    <div class="fubox">
+      <div class="h">Next visit</div>
+      <div class="b">
+        <div class="fudate">${E(f.date, f.intervalText||'To be advised')}</div>
+        ${has(f.intervalText)?'<div style="font-size:8.6pt;color:var(--slate-600);margin-bottom:6px">'+esc(f.intervalText)+'</div>':''}
+        ${tests.length?'<b style="font-size:8.6pt;color:var(--teal-800)">BRING THESE REPORTS</b><ul>'+tests.map(t=>'<li>'+E(t)+'</li>').join('')+'</ul>':''}
+        ${(ins.length||adv.length)?'<b style="font-size:8.6pt;color:var(--teal-800);display:block;margin-top:6px">ADVICE</b><ul>'+ins.concat(adv).map(t=>'<li>'+E(t)+'</li>').join('')+'</ul>':''}
+      </div>
+    </div>
+    ${showWarn ? `<div class="fubox red">
+      <div class="h">Return immediately / call casualty if</div>
+      <div class="b">
+        <ul>${warn.map(t=>'<li>'+E(t)+'</li>').join('')}</ul>
+        ${has(f.emergencyContact)?'<div style="margin-top:8px;font-weight:800;color:var(--crit)">☎ '+E(f.emergencyContact)+'</div>':''}
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+/* Emergency care — the hospital's own "when" and "how", printed as its own block */
+function emergencyBlock(e, f){
+  e = e || {}; f = f || {};
+  const when = arr(e.when).length ? arr(e.when) : arr(f.warningSigns);
+  const how  = arr(e.how);
+  const carry= arr(e.carryWith);
+  const phone= has(e.casualtyPhone) ? e.casualtyPhone : (has(f.emergencyContact) ? f.emergencyContact : '');
+  if(!when.length && !how.length && !has(phone)) return '';
+  return `<h3 class="sect red">🚑 Emergency Care</h3>
+  <div class="emg">
+    <div class="ebox when">
+      <div class="h">When to obtain emergency care</div>
+      <div class="b">
+        ${when.length?'<ul>'+when.map(x=>'<li>'+E(x)+'</li>').join('')+'</ul>'
+                     :'<div>Chest pain, severe breathlessness, fainting, or any sudden deterioration.</div>'}
+      </div>
+    </div>
+    <div class="ebox how">
+      <div class="h">How to obtain emergency care</div>
+      <div class="b">
+        ${has(phone)?'<div class="tel">☎ '+E(phone)+'</div>':''}
+        ${has(e.ambulance)?'<div class="tel amb">🚑 Ambulance: '+E(e.ambulance)+'</div>':''}
+        ${has(e.availability)?'<div class="avail">'+E(e.availability)+'</div>':''}
+        ${how.length?'<ul>'+how.map(x=>'<li>'+E(x)+'</li>').join('')+'</ul>':''}
+        ${has(e.hospitalAddress)?'<div class="addr"><b>Come to:</b> '+E(e.hospitalAddress)+'</div>':''}
+        ${carry.length?'<div class="carry"><b>Bring with you:</b> '+carry.map(x=>esc(x)).join(' · ')+'</div>':''}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Language switcher shown on the patient and diet sheets themselves */
+function langBar(active){
+  return '<div class="langbar noprint">'
+    + '<span class="lbl">Language of this page</span>'
+    + Object.keys(LANGS).map(k=>'<button type="button" class="lpill'+(k===active?' on':'')+'" data-lang="'+k+'">'
+        + esc(LANGS[k].name) + (k==='en'?'':' <i>'+esc(LANGS[k].label)+'</i>') + '</button>').join('')
+    + '</div>';
+}
+function wireLangBar(root){
+  root.querySelectorAll('.langbar .lpill').forEach(b=>{
+    b.setAttribute('contenteditable','false');
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=e=>{
+      e.preventDefault(); e.stopPropagation();
+      const L=b.dataset.lang;
+      if(L===$('langSel').value) return;
+      $('langSel').value=L;
+      $('langSel').dispatchEvent(new Event('change'));
+    };
+  });
+}
+
+function credit(){
+  return `<div class="credit">${SPANDAN_LOGO.startsWith('data:')?'<img src="'+SPANDAN_LOGO+'" alt="">':''}<span>Structured &amp; typeset by Discharge Summary AI · Developed by Dr Gurunath Parale · Generated ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</span></div>`;
+}
+
+function signature(){
+  const n = $('signDoc').value.trim() || (DATA.patient&&DATA.patient.consultant) || '';
+  const q = $('signQual').value.trim() || '';
+  const p = DATA.patient||{};
+  return `<div class="sig">
+    <div class="l">
+      <b>Condition on discharge:</b> ${E(DATA.stay&&DATA.stay.conditionOnDischarge,'Stable')}<br>
+      <b>Reports of investigations are provided to the patient.</b><br>
+      This summary was reconstructed from the hospital record and verified by the signing consultant.
+    </div>
+    <div class="r">
+      <div class="nm2">${E(n,'Consultant')}</div>
+      <div class="q">${E(q,'')}</div>
+    </div>
+  </div>
+  <div class="ack">
+    <div class="akc"><div class="k">Received by — name</div><div class="v">${E(p.relativeName,'')}</div></div>
+    <div class="akc"><div class="k">Relation to patient</div><div class="v">${E(p.relativeRelation,'')}</div></div>
+    <div class="akc"><div class="k">Signature</div><div class="v sigline">&nbsp;</div></div>
+    <div class="akc"><div class="k">Date &amp; time</div><div class="v">${E(DATA.stay&&DATA.stay.discharge,'')}</div></div>
+  </div>${credit()}`;
+}
+
+function renderDoc(){
+  const d=DATA, p=d.patient||{}, s=d.stay||{}, inv=d.investigations||{};
+  const invBody = labTable(inv.lab) + cardList(inv.imaging,'B. Imaging Investigations','🖼') + cardList(inv.special,'C. Special Investigations &amp; Cardiac Procedures','📈');
+  $('sheetDoc').innerHTML =
+    fmtHospital(d.hospital) +
+    '<div class="doctitle">Discharge Summary</div>' +
+    `<div class="ptgrid">
+      ${cell('Patient name', p.name, 'wide')}
+      ${cell('Age / Sex', [p.age,p.sex].filter(has).join(' / '))}
+      ${cell('IPD / OPD No.', [p.ipdNo,p.opdNo].filter(has).join(' / '))}
+      ${cell('Consultant in charge', p.consultant, 'wide')}
+      ${cell('Ward / Bed', p.ward)}
+      ${cell('Referred by', p.referredBy)}
+      ${has(p.address)||has(p.relativeName)?cell('Address / Relative', [p.address, has(p.relativeName)?p.relativeName+(has(p.relativeRelation)?' ('+p.relativeRelation+')':''):''].filter(has).join(' · '),'full'):''}
+    </div>` +
+    `<div class="datestrip">
+      <div class="dchip"><div class="k">Admitted</div><div class="v">${E(s.admission)}</div></div>
+      <div class="dchip"><div class="k">Procedure</div><div class="v">${E(s.operation)}</div></div>
+      <div class="dchip"><div class="k">Discharged</div><div class="v">${E(s.discharge)}</div></div>
+      <div class="dchip"><div class="k">Stay</div><div class="v">${E(s.lengthOfStay)}</div></div>
+    </div>` +
+    dxBlock(d.diagnoses, d.procedures) +
+    (has(s.presentingComplaint)||has(s.bpAdmission)||has(s.pulse) ?
+      `<h3 class="sect">🩺 On Admission</h3>
+       <table class="t"><tbody>
+        ${has(s.presentingComplaint)?'<tr><td class="nm" style="width:28%">Presenting complaint</td><td>'+E(s.presentingComplaint)+'</td></tr>':''}
+        ${has(s.bpAdmission)?'<tr><td class="nm">BP on admission</td><td>'+E(s.bpAdmission)+(has(s.pulse)?' &nbsp;·&nbsp; Pulse '+esc(s.pulse):'')+'</td></tr>':''}
+        ${has(s.bpDischarge)?'<tr><td class="nm">BP on discharge</td><td>'+E(s.bpDischarge)+'</td></tr>':''}
+       </tbody></table>` : '') +
+    procBlock(d.procedures) +
+    (invBody ? '<h3 class="sect">🔬 Investigations</h3>'+invBody : '') +
+    (has(d.hospitalCourse)||has(d.clinicalSummary)||arr(d.treatmentGiven).length ?
+      '<h3 class="sect">📝 Clinical Summary &amp; Course in Hospital</h3>'+
+      (has(d.hospitalCourse)?'<div class="summary-txt">'+E(d.hospitalCourse)+'</div>':'')+
+      (arr(d.treatmentGiven).length?'<h4 class="sub">💉 Treatment given during the stay</h4><ul class="tgiven">'+arr(d.treatmentGiven).map(x=>'<li>'+E(x)+'</li>').join('')+'</ul>':'')+
+      (has(d.clinicalSummary)?'<div class="summary-txt synth"><b>Summary for the referring doctor:</b> '+E(d.clinicalSummary)+'</div>':'')
+      : '') +
+    rxTable(d.prescription, d.interactions) +
+    followUp(d.followUp, d.advice, d.emergency) +
+    emergencyBlock(d.emergency, d.followUp) +
+    signature();
+  markEditable($('sheetDoc'));
+}
+
+/* ============================================================
+   6.  RENDER — PATIENT PAGE
+   ============================================================ */
+const UI = {
+  en:{s1:'What happened to you',s2:'How serious it is',s3:'What your tests showed',s4:'Why your medicines matter',s5:'Do and do not',s6:'Go to hospital at once if',s7:'Next visit',fam:'for the family'},
+  mr:{s1:'काय झालं',s2:'किती गंभीर आहे',s3:'तपासण्यांमध्ये काय आढळलं',s4:'औषधं का महत्त्वाची आहेत',s5:'काय करावं आणि काय टाळावं',s6:'ताबडतोब दवाखान्यात या जर',s7:'पुढची भेट',fam:'घरच्यांसाठी'},
+  hi:{s1:'क्या हुआ',s2:'कितना गंभीर है',s3:'जाँचों में क्या मिला',s4:'दवाइयाँ क्यों ज़रूरी हैं',s5:'क्या करें और क्या न करें',s6:'तुरंत अस्पताल आएँ अगर',s7:'अगली भेंट',fam:'घरवालों के लिए'},
+  kn:{s1:'ಏನಾಯಿತು',s2:'ಎಷ್ಟು ಗಂಭೀರವಾಗಿದೆ',s3:'ಪರೀಕ್ಷೆಗಳಲ್ಲಿ ಏನು ಕಂಡುಬಂತು',s4:'ಔಷಧಿಗಳು ಏಕೆ ಮುಖ್ಯ',s5:'ಏನು ಮಾಡಬೇಕು ಮತ್ತು ಮಾಡಬಾರದು',s6:'ಕೂಡಲೇ ಆಸ್ಪತ್ರೆಗೆ ಬನ್ನಿ ಒಂದು ವೇಳೆ',s7:'ಮುಂದಿನ ಭೇಟಿ',fam:'ಮನೆಯವರಿಗಾಗಿ'}
+};
+
+function renderPatient(){
+  const lang = $('langSel').value;
+  const L = LANGS[lang]||LANGS.mr;
+  const pack = (EXTRA&&EXTRA.patient) || {};
+  const loc = (lang==='en') ? (pack.en||{}) : (pack.loc||pack.en||{});
+  const en  = pack.en||{};
+  const d = DATA, p=d.patient||{};
+  const sheet=$('sheetPt');
+  sheet.className = 'sheet '+(lang==='en'?'':L.font);
+
+  const U = UI[lang]||UI.mr;
+  const sev = (en.severity||loc.severity||'moderate').toLowerCase();
+  const sevOn = k => sev===k ? 'on' : (sev==='severe'?'on':(sev==='moderate'&&k!=='sev'?'on':(sev==='mild'&&k==='mild'?'on':'')));
+  const tone = t => t==='serious'?'critical':(t==='watch'?'abnormal':'normal');
+
+  const findings = arr(loc.testFindings).length?arr(loc.testFindings):arr(en.testFindings);
+  const meds = arr(loc.keyMedicines).length?arr(loc.keyMedicines):arr(en.keyMedicines);
+
+  const pend = EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
+      ? '⚠️ This page could not be written. Switch the language and switch back to try again.'
+      : '⏳ Being written in '+(LANGS[lang]||LANGS.mr).label+' — the discharge summary on the first tab is ready now.')+'</div>' : '';
+  sheet.innerHTML =
+    fmtHospital(d.hospital) + langBar(lang) + pend +
+    `<div class="pp-hero">
+       <div class="t">${esc(loc.title||'तुमच्या आजाराची माहिती')}</div>
+       <div class="s">${esc(loc.subtitle||'')}</div>
+       <div class="s" style="margin-top:7px;font-weight:700">${esc(p.name||'')} ${p.age?'· '+esc(p.age):''} ${p.sex?'· '+esc(p.sex):''} ${d.stay&&d.stay.discharge?'· '+esc(d.stay.discharge):''}</div>
+     </div>` +
+    `<div class="pp-sec"><div class="h">1️⃣ ${esc(U.s1)}</div>
+       <div class="b">${esc(loc.whatHappened||'')}${loc.whatWasDone?'<br><br>'+esc(loc.whatWasDone):''}</div></div>` +
+    `<div class="pp-sec"><div class="h">2️⃣ ${esc(U.s2)}</div>
+       <div class="b">
+         <div class="sevbar">
+           <span class="sevpill mild ${sev?'on':''}"></span>
+           <span class="sevpill mod ${sev==='moderate'||sev==='severe'?'on':''}"></span>
+           <span class="sevpill sev ${sev==='severe'?'on':''}"></span>
+           <span class="sevlabel" style="color:${sev==='severe'?'var(--crit)':sev==='moderate'?'#b45309':'var(--ok)'}">${esc(loc.severityWord||sev)}</span>
+         </div>
+         ${esc(loc.severityExplain||'')}
+       </div></div>` +
+    (findings.length?`<div class="pp-sec"><div class="h">3️⃣ ${esc(U.s3)}</div>
+       <div class="b"><table class="t"><tbody>${findings.map(f=>`<tr>
+          <td class="nm" style="width:38%">${esc(f.what||'')}</td>
+          <td>${esc(f.meaning||'')}</td>
+          <td style="width:14%;text-align:center"><span class="badge ${tone(f.tone)}">${esc(f.tone==='serious'?'!':f.tone==='watch'?'~':'✓')}</span></td>
+        </tr>`).join('')}</tbody></table></div></div>`:'') +
+    `<div class="pp-sec"><div class="h">4️⃣ ${esc(U.s4)}</div>
+       <div class="b">
+         <div style="font-weight:700;color:var(--crit);margin-bottom:6px">${esc(loc.neverStop||'')}</div>
+         ${esc(loc.medicineWhy||'')}
+         ${meds.length?'<div class="medstrip">'+meds.map(m=>'<span class="medpill">'+esc(m.name||'')+(m.why?' — <span style="font-weight:500">'+esc(m.why)+'</span>':'')+'</span>').join('')+'</div>':''}
+       </div></div>` +
+    ((arr(loc.dos).length||arr(loc.donts).length)?`<div class="pp-sec"><div class="h">5️⃣ ${esc(U.s5)}</div>
+       <div class="b"><div class="do-dont">
+         <div class="ddbox do"><h5>✅</h5><ul>${arr(loc.dos).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+         <div class="ddbox dont"><h5>⛔</h5><ul>${arr(loc.donts).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+       </div></div></div>`:'') +
+    (arr(loc.warningSigns).length?`<div class="pp-sec" style="border-color:var(--crit-br)"><div class="h" style="background:var(--crit-bg);color:var(--crit);border-color:var(--crit-br)">🚨 ${esc(U.s6)}</div>
+       <div class="b"><ul>${arr(loc.warningSigns).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
+       ${DATA.followUp&&has(DATA.followUp.emergencyContact)?'<div style="margin-top:8px;font-weight:800;color:var(--crit);font-size:11pt">☎ '+esc(DATA.followUp.emergencyContact)+'</div>':''}</div></div>`:'') +
+    (has(loc.followUp)?`<div class="pp-sec"><div class="h">📅 ${esc(U.s7)}</div><div class="b">${esc(loc.followUp)}</div></div>`:'') +
+    (has(loc.closing)?`<div style="text-align:center;font-size:10.5pt;font-style:italic;color:var(--teal-800);margin-top:12px;padding:10px;background:var(--teal-50);border-radius:8px">${esc(loc.closing)}</div>`:'') +
+    credit();
+  wireLangBar(sheet);
+}
+
+/* ============================================================
+   7.  RENDER — DIET PAGE
+   ============================================================ */
+const COMO={cad:'Coronary artery disease',post_pci:'Post-PCI / stented',heart_failure:'Heart failure',diabetes:'Type 2 diabetes',hypertension:'Hypertension',ckd:'Chronic kidney disease',dyslipidemia:'Dyslipidaemia',obesity:'Obesity',anemia:'Anaemia',thyroid:'Thyroid disorder',copd:'COPD',stroke:'Previous stroke',liver_disease:'Liver disease',gout:'Gout / hyperuricaemia',hyponatremia:'Hyponatraemia',elderly:'Elderly (frailty care)',af:'Atrial fibrillation',smoker:'Smoker'};
+
+function renderDiet(){
+  const lang=$('langSel').value, L=LANGS[lang]||LANGS.mr;
+  const dt=(EXTRA&&EXTRA.diet)||{};
+  const d=DATA, p=d.patient||{};
+  const m=dt.meals||{}, lim=dt.limits||{}, ex=dt.exercise||{};
+  const mealBox=(title,items)=>arr(items).length?`<div class="meal"><div class="h">${esc(title)}</div><div class="b"><ul>${arr(items).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div></div>`:'';
+  const limBox=(k,v,s)=>has(v)?`<div class="limit"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>${s?'<div class="s">'+esc(s)+'</div>':''}</div>`:'';
+  const como = arr(d.comorbidities).map(c=>COMO[c]||String(c).replace(/_/g,' ')).join('  ·  ');
+
+  const pend = EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
+      ? '⚠️ This page could not be written. Switch the language and switch back to try again.'
+      : '⏳ Being written now — the discharge summary on the first tab is ready.')+'</div>' : '';
+  $('sheetDiet').innerHTML =
+    fmtHospital(d.hospital) + langBar(lang) + pend +
+    '<div class="doctitle">Diet &amp; Lifestyle Prescription</div>' +
+    `<div class="ptgrid">
+      ${cell('Patient', p.name,'wide')}
+      ${cell('Age / Sex', [p.age,p.sex].filter(has).join(' / '))}
+      ${cell('Date', d.stay&&d.stay.discharge)}
+      ${como?'<div class="ptcell full"><div class="k">Prescribed for these conditions</div><div class="v">'+esc(como)+'</div></div>':''}
+    </div>` +
+    (has(dt.headline)?`<div class="pp-hero" style="padding:11px 15px"><div class="t" style="font-size:12pt">${esc(dt.headline)}</div>${has(dt.basis)?'<div class="s">'+esc(dt.basis)+'</div>':''}</div>`:'') +
+    `<div class="limits">
+      ${limBox('Salt', lim.salt)}${limBox('Fluid', lim.fluid)}${limBox('Calories', lim.calories)}
+      ${limBox('Protein', lim.protein)}${limBox('Potassium', lim.potassium)}${limBox('Sugar', lim.sugar)}
+    </div>` +
+    `<div class="dietgrid">
+      <div class="dbox avoid"><h5>⛔ Avoid / strictly restrict</h5><ul>${arr(dt.avoid).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+      <div class="dbox eat"><h5>✅ Eat freely — therapeutic foods</h5><ul>${arr(dt.eat).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+    </div>` +
+    `<h3 class="sect teal">🍽 A Day's Plan</h3>
+     <div class="meals">
+       ${mealBox('Early morning', m.earlyMorning)}${mealBox('Breakfast', m.breakfast)}${mealBox('Mid-morning', m.midMorning)}
+       ${mealBox('Lunch', m.lunch)}${mealBox('Evening', m.evening)}${mealBox('Dinner', m.dinner)}
+     </div>` +
+    ((has(ex.type)||arr(ex.cautions).length)?`<h3 class="sect">🚶 Activity &amp; Exercise</h3>
+     <table class="t"><tbody>
+       ${has(ex.type)?'<tr><td class="nm" style="width:24%">Type</td><td>'+esc(ex.type)+'</td></tr>':''}
+       ${has(ex.intensity)?'<tr><td class="nm">Intensity</td><td>'+esc(ex.intensity)+'</td></tr>':''}
+       ${has(ex.duration)?'<tr><td class="nm">Duration</td><td>'+esc(ex.duration)+'</td></tr>':''}
+       ${has(ex.progression)?'<tr><td class="nm">How to progress</td><td>'+esc(ex.progression)+'</td></tr>':''}
+       ${arr(ex.cautions).length?'<tr><td class="nm" style="color:var(--crit)">Cautions</td><td><ul style="margin-left:15px">'+arr(ex.cautions).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></td></tr>':''}
+     </tbody></table>`:'') +
+    ((arr(dt.lifestyle).length||arr(dt.monitoring).length)?`<div class="dietgrid">
+       ${arr(dt.lifestyle).length?'<div class="dbox" style="background:var(--teal-50);border:1px solid var(--teal-100)"><h5 style="color:var(--teal-800)">🏠 Daily habits</h5><ul>'+arr(dt.lifestyle).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
+       ${arr(dt.monitoring).length?'<div class="dbox" style="background:var(--slate-50);border:1px solid var(--slate-200)"><h5 style="color:var(--slate-700)">📊 Keep a watch on</h5><ul>'+arr(dt.monitoring).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
+     </div>`:'') +
+    ((arr(dt.localAvoid).length||arr(dt.localEat).length||arr(dt.localTips).length)?
+     `<h3 class="sect teal">${esc(L.name)} — ${esc((UI[lang]||UI.mr).fam)}</h3>
+      <div class="${lang==='kn'?'lang-kn':'lang-in'}" style="font-family:${lang==='kn'?'var(--font-kn)':'var(--font-in)'};font-size:10.5pt;line-height:1.8">
+        ${has(dt.localHeadline)?'<div style="font-weight:700;color:var(--teal-900);margin-bottom:8px">'+esc(dt.localHeadline)+'</div>':''}
+        <div class="dietgrid">
+          ${arr(dt.localAvoid).length?'<div class="dbox avoid"><h5 style="color:var(--crit)">⛔</h5><ul>'+arr(dt.localAvoid).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
+          ${arr(dt.localEat).length?'<div class="dbox eat"><h5 style="color:var(--ok)">✅</h5><ul>'+arr(dt.localEat).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
+        </div>
+        ${arr(dt.localTips).length?'<ul style="margin-left:18px;margin-top:8px">'+arr(dt.localTips).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':''}
+      </div>`:'') +
+    signatureLite() + credit();
+  wireLangBar($('sheetDiet'));
+}
+function signatureLite(){
+  const n=$('signDoc').value.trim()||(DATA.patient&&DATA.patient.consultant)||'';
+  const q=$('signQual').value.trim()||'';
+  return `<div class="sig"><div class="l"><b>This diet is prescribed for this patient only</b>, based on the conditions listed above.<br>Show it to your doctor if any new illness is diagnosed.</div>
+   <div class="r"><div class="nm2">${esc(n||'Consultant')}</div><div class="q">${esc(q)}</div></div></div>`;
+}
+
+/* ============================================================
+   8.  EDIT MODE
+   ============================================================ */
+function markEditable(root){
+  root.querySelectorAll('[data-edit]').forEach(el=>{ el.setAttribute('contenteditable', editMode?'true':'false'); });
+  root.setAttribute('contenteditable', editMode?'true':'false');
+  root.setAttribute('spellcheck','false');
+}
+
+/* Row-level tools: duplicate / delete / add — injected once per render,
+   hidden by CSS until edit mode is on. */
+function blankLike(node){
+  const c=node.cloneNode(true);
+  c.querySelectorAll('td,li,.dxshort,.dxfull,.icd,.v,.nm,.purpose,.dose,.ref').forEach(el=>{
+    if(!el.querySelector('*') && !el.classList.contains('rowtool')) el.textContent='';
+  });
+  c.querySelectorAll('.chips').forEach(el=>el.innerHTML='<span class="rchip unknown"><span class="d">date</span><span class="val">value</span></span>');
+  c.querySelectorAll('.badge').forEach(el=>{ el.className='badge unknown'; el.textContent='—'; });
+  c.querySelectorAll('.dxtag').forEach(el=>el.remove());
+  return c;
+}
+function tools(target, kind){
+  const t=document.createElement('span'); t.className='rowtool'; t.setAttribute('contenteditable','false');
+  const dup=document.createElement('button'); dup.className='dup'; dup.type='button'; dup.title='Duplicate this row'; dup.textContent='⧉';
+  const del=document.createElement('button'); del.className='del'; del.type='button'; del.title='Delete this row'; del.textContent='×';
+  dup.onmousedown=e=>{e.preventDefault();};
+  del.onmousedown=e=>{e.preventDefault();};
+  dup.onclick=e=>{ e.preventDefault(); e.stopPropagation(); const c=blankLike(target); target.after(c); wireTools(c.parentNode); };
+  del.onclick=e=>{ e.preventDefault(); e.stopPropagation(); if(confirm('Delete this '+(kind||'row')+'?')) target.remove(); };
+  t.append(dup,del); return t;
+}
+function wireTools(scope){
+  (scope||document).querySelectorAll('.rowtool').forEach(t=>{
+    const row=t.closest('tr')||t.closest('.dxitem')||t.closest('li')||t.closest('.imgcard')||t.closest('.proc');
+    if(!row) return;
+    const btns=t.querySelectorAll('button');
+    btns[0].onclick=e=>{e.preventDefault();e.stopPropagation();const c=blankLike(row);row.after(c);wireTools(c.parentNode);};
+    btns[1].onclick=e=>{e.preventDefault();e.stopPropagation();if(confirm('Delete this row?'))row.remove();};
+    btns.forEach(b=>b.onmousedown=e=>e.preventDefault());
+  });
+}
+function injectEditTools(root){
+  // table rows
+  root.querySelectorAll('table.t tbody tr').forEach(tr=>{
+    if(tr.classList.contains('panelrow')) return;
+    if(tr.querySelector('.rowtool')) return;
+    const inMatrix = !!tr.closest('table.labmx');
+    const host = inMatrix ? tr.firstElementChild : tr.lastElementChild;
+    if(host) host.appendChild(tools(tr,'row'));
+  });
+  // diagnosis items, imaging cards, procedures
+  root.querySelectorAll('.dxitem').forEach(it=>{ if(!it.querySelector('.rowtool')) it.querySelector('.dxtext').appendChild(tools(it,'diagnosis')); });
+  root.querySelectorAll('.imgcard .hdr').forEach(h=>{ if(!h.querySelector('.rowtool')) h.appendChild(tools(h.closest('.imgcard'),'investigation')); });
+  root.querySelectorAll('.proc .ph').forEach(h=>{ if(!h.querySelector('.rowtool')) h.appendChild(tools(h.closest('.proc'),'procedure')); });
+  // bullet list items
+  root.querySelectorAll('.imgcard ul li,.fubox ul li,.dbox ul li,.meal ul li,.pp-sec ul li,.proc ul li').forEach(li=>{
+    if(!li.querySelector('.rowtool')) li.appendChild(tools(li,'line'));
+  });
+  // "+ add row" under every table and list
+  root.querySelectorAll('table.t').forEach(tb=>{
+    if(tb.nextElementSibling && tb.nextElementSibling.classList && tb.nextElementSibling.classList.contains('addrow')) return;
+    const b=document.createElement('button'); b.type='button'; b.className='addrow'; b.setAttribute('contenteditable','false');
+    b.textContent='＋ Add row';
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=e=>{
+      e.preventDefault();
+      const body=tb.querySelector('tbody'); if(!body||!body.lastElementChild) return;
+      const c=blankLike(body.lastElementChild); body.appendChild(c); wireTools(body);
+      const f=c.querySelector('td'); if(f){ f.focus&&f.focus(); }
+    };
+    tb.after(b);
+  });
+  root.querySelectorAll('.imgcard ul,.fubox ul,.dbox ul,.meal ul').forEach(ul=>{
+    if(ul.nextElementSibling && ul.nextElementSibling.classList && ul.nextElementSibling.classList.contains('addrow')) return;
+    const b=document.createElement('button'); b.type='button'; b.className='addrow'; b.setAttribute('contenteditable','false');
+    b.textContent='＋ Add line'; b.style.margin='2px 0 6px';
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=e=>{ e.preventDefault(); const li=document.createElement('li'); li.textContent='New line'; li.appendChild(tools(li,'line')); ul.appendChild(li); };
+    ul.after(b);
+  });
+}
+
+function setEdit(on){
+  editMode=on;
+  document.body.classList.toggle('edit-on', on);
+  ['sheetDoc','sheetPt','sheetDiet'].forEach(id=>{
+    const s=$(id); if(!s||!s.innerHTML) return;
+    if(on) injectEditTools(s);
+    markEditable(s);
+  });
+  $('editBtn').innerHTML = on?'✅ Done editing':'✏️ Edit fields';
+  if(on) toast('<b>Edit mode on — everything is editable.</b> Click any word and type. ⧉ duplicates a row, × deletes it, ＋ adds one.',7000);
+}
+
+/* Export the current sheet(s) as an editable Word document */
+function wordHtml(sheets, title){
+  const css = Array.from(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
+  const body = sheets.map(id=>{
+    const c=$(id).cloneNode(true);
+    c.removeAttribute('contenteditable');
+    c.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));
+    c.querySelectorAll('.rowtool,.addrow,.noprint').forEach(e=>e.remove());
+    c.style.cssText='width:100%;border:0;box-shadow:none;padding:0;margin:0 0 24pt';
+    return c.outerHTML;
+  }).join('<br clear=all style="page-break-before:always">');
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    +'<head><meta charset="utf-8"><title>'+esc(title)+'</title>'
+    +'<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->'
+    +'<style>@page{size:A4;margin:1.6cm 1.4cm} body{font-family:Calibri,\'Segoe UI\',sans-serif}'+css+'</style></head><body>'+body+'</body></html>';
+}
+function downloadWord(sheets, filename, title){
+  const html = wordHtml(sheets, title);
+  const blob = new Blob(['﻿'+html], {type:'application/msword'});
+  const u=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=u; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+
+/* ============================================================
+   9.  PDF (true A4 paginator — nothing is ever sliced) + PRINT + WHATSAPP
+   ============================================================ */
+function pdfName(kind){
+  const n=(DATA&&DATA.patient&&DATA.patient.name||'Patient').replace(/[^A-Za-z0-9 ]/g,'').trim().replace(/\s+/g,'_')||'Patient';
+  const d=(DATA&&DATA.stay&&DATA.stay.discharge||'').replace(/[^A-Za-z0-9]/g,'-');
+  return n+'_'+kind+(d?'_'+d:'')+'.pdf';
+}
+
+const MM       = 96/25.4;                       // CSS px per mm
+const PG_MG    = 10;                            // page margin, mm
+const PG_W_MM  = 210 - 2*PG_MG;                 // 190 mm of usable width
+const PG_H_MM  = 297 - 2*PG_MG;                 // 277 mm of usable height
+const PG_W_PX  = Math.round(PG_W_MM*MM);        // 718 px
+const PG_H_PX  = Math.round(PG_H_MM*MM);        // 1047 px
+const PDF_SCALE= 2;                             // canvas oversampling
+
+function pdfLibs(){
+  const H2C=window.html2canvas, J=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+  return (H2C&&J)?{H2C,J}:null;
+}
+function mkPage(cls){
+  const d=document.createElement('div');
+  d.className=cls||'sheet';
+  d.style.cssText='width:'+PG_W_PX+'px;max-width:none;padding:0;margin:0;border:0;border-radius:0;box-shadow:none;background:#fff;overflow:hidden';
+  return d;
+}
+function cleanSheet(id){
+  const c=$(id).cloneNode(true);
+  c.removeAttribute('contenteditable');
+  c.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));
+  c.querySelectorAll('.rowtool,.addrow,.noprint').forEach(e=>e.remove());
+  // unwrap horizontal scrollers so the table can be split across pages
+  c.querySelectorAll('.tscroll').forEach(w=>{ const p=w.parentNode; while(w.firstChild) p.insertBefore(w.firstChild,w); p.removeChild(w); });
+  c.style.cssText='width:'+PG_W_PX+'px;max-width:none;padding:0;margin:0;border:0;border-radius:0;box-shadow:none;background:#fff';
+  return c;
+}
+function hOf(el,stage){ stage.appendChild(el); const h=Math.ceil(el.getBoundingClientRect().height); stage.removeChild(el); return h; }
+
+/* a table taller than a page becomes several tables, each repeating the header row */
+function splitTable(tbl,stage,firstAvail){
+  const thead=tbl.querySelector('thead');
+  const rows=Array.from(tbl.querySelectorAll('tbody > tr'));
+  if(rows.length<2) return [tbl];
+  const out=[]; let avail=firstAvail;
+  const fresh=()=>{ const t=tbl.cloneNode(false); if(thead) t.appendChild(thead.cloneNode(true));
+                    const b=document.createElement('tbody'); t.appendChild(b); return {t,b}; };
+  let {t,b}=fresh();
+  rows.forEach(r=>{
+    const rc=r.cloneNode(true);
+    b.appendChild(rc);
+    if(hOf(t,stage)>avail && b.childElementCount>1){
+      b.removeChild(rc);
+      out.push(t); avail=PG_H_PX;
+      const n=fresh(); t=n.t; b=n.b; b.appendChild(rc);
+    }
+  });
+  if(b.childElementCount) out.push(t);
+  return out;
+}
+/* any other over-tall block is split on its own children, keeping its shell */
+function splitGeneric(el,stage,firstAvail){
+  const kids=Array.from(el.children);
+  if(kids.length<2) return [el];
+  const out=[]; let avail=firstAvail;
+  let shell=el.cloneNode(false);
+  kids.forEach(k=>{
+    const kc=k.cloneNode(true);
+    shell.appendChild(kc);
+    if(hOf(shell,stage)>avail && shell.childElementCount>1){
+      shell.removeChild(kc);
+      out.push(shell); avail=PG_H_PX;
+      shell=el.cloneNode(false); shell.appendChild(kc);
+    }
+  });
+  if(shell.childElementCount) out.push(shell);
+  return out;
+}
+
+function paginateSheet(id,stage){
+  const sheet=cleanSheet(id);
+  const cls=sheet.className;
+  const blocks=Array.from(sheet.children);
+  const pages=[]; let page=mkPage(cls), used=0;
+  const commit=()=>{ if(page.childElementCount) pages.push(page); page=mkPage(cls); used=0; };
+  // a short tail block (a credit line, a one-line note) may run ~2% over rather
+  // than claim a page of its own — that sits inside the paper margin.
+  const TOL=Math.round(PG_H_PX*0.02);
+
+  blocks.forEach(el=>{
+    const h=hOf(el,stage);
+    const room=PG_H_PX-used;
+    if(h<=room || (h<=110 && h<=room+TOL)){ page.appendChild(el); used+=h; return; }
+    if(h<=PG_H_PX){ commit(); page.appendChild(el); used=h; return; }
+    const parts = (el.tagName==='TABLE')
+      ? splitTable(el,stage,PG_H_PX-used)
+      : splitGeneric(el,stage,PG_H_PX-used);
+    if(parts.length<2){
+      // genuinely unsplittable — scale it down so the whole of it still prints
+      commit();
+      const s=Math.min(1,PG_H_PX/h);
+      const wrap=document.createElement('div');
+      wrap.style.cssText='transform:scale('+s+');transform-origin:top left;width:'+Math.round(PG_W_PX/s)+'px';
+      wrap.appendChild(el);
+      page.appendChild(wrap); used=PG_H_PX; commit(); return;
+    }
+    parts.forEach(p=>{
+      const ph=hOf(p,stage);
+      if(ph>PG_H_PX-used) commit();
+      page.appendChild(p); used+=ph;
+    });
+  });
+  commit();
+  return pages;
+}
+
+async function renderPdfBlob(ids,onProg){
+  const L=pdfLibs();
+  if(!L) throw new Error('The PDF engine did not load. Check the internet connection and reload the page — you can still use <b>Print</b> and save as PDF from there.');
+  const stage=document.createElement('div');
+  // NOTE: no visibility:hidden / opacity:0 here — html2canvas honours both and
+  // would render blank pages. Park it off-screen instead.
+  stage.style.cssText='position:absolute;left:-20000px;top:0;width:'+PG_W_PX+'px;background:#fff';
+  document.body.appendChild(stage);
+  try{
+    let pages=[];
+    ids.forEach(id=>{ pages=pages.concat(paginateSheet(id,stage)); });
+    if(!pages.length) throw new Error('Nothing to export yet.');
+    const pdf=new L.J({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+    for(let i=0;i<pages.length;i++){
+      onProg && onProg(i+1,pages.length);
+      stage.appendChild(pages[i]);
+      const canvas=await L.H2C(pages[i],{scale:PDF_SCALE,useCORS:true,backgroundColor:'#ffffff',logging:false,width:PG_W_PX,windowWidth:PG_W_PX});
+      stage.removeChild(pages[i]);
+      const hmm=Math.min(PG_H_MM,(canvas.height/canvas.width)*PG_W_MM);
+      if(i) pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.85),'JPEG',PG_MG,PG_MG,PG_W_MM,hmm,undefined,'FAST');
+      canvas.width=1; canvas.height=1;
+      await new Promise(r=>setTimeout(r,0));   // let the UI breathe
+    }
+    const nm=String((DATA&&DATA.patient&&DATA.patient.name)||'').replace(/[^\x20-\x7E]/g,'').trim().slice(0,46);
+    const ip=String((DATA&&DATA.patient&&DATA.patient.ipdNo)||'');
+    const n=pdf.internal.getNumberOfPages();
+    for(let i=1;i<=n;i++){
+      pdf.setPage(i); pdf.setFontSize(7); pdf.setTextColor(125,135,150);
+      if(nm) pdf.text(nm+(ip?'  -  IPD '+ip:''),PG_MG,292);
+      pdf.text('Page '+i+' of '+n,210-PG_MG,292,{align:'right'});
+    }
+    return pdf.output('blob');
+  } finally { try{document.body.removeChild(stage);}catch(e){} }
+}
+
+const PAGES = [
+  {id:'sheetDoc',  kind:'Discharge_Summary',   label:'📋 Discharge Summary (for the file / referring doctor)', to:'doc'},
+  {id:'sheetPt',   kind:'Patient_Explanation', label:'🧑 Patient explanation page', to:'pt'},
+  {id:'sheetDiet', kind:'Diet_Prescription',   label:'🥗 Diet & lifestyle prescription', to:'pt'},
+  {id:'PTPACK',    kind:'Patient_Pack',        label:'👨‍👩‍👧 Patient page + diet sheet together', ids:['sheetPt','sheetDiet'], to:'pt'}
+];
+const PAGE_BY_KIND = k => PAGES.find(p=>p.kind===k);
+
+function pickPage(title, sub, cb){
+  $('pickTitle').textContent=title; $('pickSub').textContent=sub;
+  const body=$('pickBody'); body.innerHTML='';
+  PAGES.forEach(p=>{
+    const b=document.createElement('button'); b.className='btn '+(p.id==='PTPACK'?'btn-soft':'btn-ghost'); b.textContent=p.label;
+    b.onclick=()=>{ $('pickModal').classList.remove('on'); cb(p); };
+    body.appendChild(b);
+  });
+  const all=document.createElement('button'); all.className='btn btn-primary'; all.textContent='📚 All three pages together';
+  all.onclick=()=>{ $('pickModal').classList.remove('on'); cb({id:'ALL',kind:'Full_Discharge_Pack',label:'All pages'}); };
+  body.appendChild(all);
+  $('pickModal').classList.add('on');
+}
+
+function pageIds(page){
+  if(page.ids) return page.ids;
+  if(page.id==='ALL') return ['sheetDoc','sheetPt','sheetDiet'];
+  return [page.id];
+}
+function buildBlob(page){
+  return renderPdfBlob(pageIds(page),(i,n)=>status('Building PDF — page '+i+' of '+n+'…'));
+}
+
+function waText(page){
+  const p=DATA.patient||{}, s=DATA.stay||{};
+  const dx=arr(DATA.diagnoses).map(d=>'• '+(d.short||d.full)+(d.icd10?' ['+d.icd10+']':'')).join('\n');
+  if(page.kind==='Diet_Prescription'){
+    return `*Diet & Lifestyle Prescription*\n${p.name||''}${p.age?' · '+p.age:''}\n\n${(EXTRA&&EXTRA.diet&&EXTRA.diet.headline)||''}\n\nFull plan in the attached PDF.`;
+  }
+  if(page.kind==='Patient_Pack'){
+    const loc=(EXTRA&&EXTRA.patient&&(EXTRA.patient.loc||EXTRA.patient.en))||{};
+    const em=(DATA.emergency||{});
+    const tel=has(em.casualtyPhone)?em.casualtyPhone:((DATA.followUp||{}).emergencyContact||'');
+    return `*${loc.title||'Your health summary'}*\n${p.name||''}${p.age?' · '+p.age:''}\n\n${(loc.whatHappened||'').slice(0,400)}\n\n${loc.neverStop||''}\n\nThe attached PDF has the full explanation and the diet sheet.${tel?'\n\n🚑 Emergency: '+tel:''}`;
+  }
+  if(page.kind==='Patient_Explanation'){
+    const loc=(EXTRA&&EXTRA.patient&&(EXTRA.patient.loc||EXTRA.patient.en))||{};
+    return `*${loc.title||'Your health summary'}*\n${p.name||''}\n\n${(loc.whatHappened||'').slice(0,500)}\n\nPlease read the attached PDF and do not stop any medicine.`;
+  }
+  return `*DISCHARGE SUMMARY*\n${(DATA.hospital&&DATA.hospital.name)||''}\n\n*Patient:* ${p.name||''} ${p.age?'('+p.age+(p.sex?'/'+p.sex:'')+')':''}\n*IPD:* ${p.ipdNo||'-'}\n*Admitted:* ${s.admission||'-'}  *Discharged:* ${s.discharge||'-'}\n\n*Diagnosis:*\n${dx}\n\nFull summary with investigations and prescription in the attached PDF.`;
+}
+
+let waPending=null;
+function waStoreKey(page){ return (page&&page.to==='doc') ? 'dsai_wa_doc' : 'dsai_wa_pt'; }
+function openWa(page){
+  waPending=page;
+  $('waFileName').textContent='📎 '+pdfName(page.kind);
+  const lbl=$('waWho'); if(lbl) lbl.textContent = (page.to==='doc')
+    ? 'Sending the discharge summary — usually to the referring doctor.'
+    : 'Sending the patient page — usually to the patient or a relative.';
+  $('waNum').value = store.get(waStoreKey(page)) || $('ptWa').value.trim() || '';
+  $('waModal').classList.add('on');
+  // pre-warm
+  buildBlob(page).then(b=>{ waPending && (waPending._blob=b); }).catch(e=>console.warn('prewarm',e));
+}
+function cleanNum(v){
+  let n=String(v||'').replace(/\D/g,'');
+  if(!n) return '';
+  if(n.length===10) n='91'+n;
+  if(n.length===11 && n.startsWith('0')) n='91'+n.slice(1);
+  return n;
+}
+
+/* ============================================================
+   10.  MAIN FLOW
+   ============================================================ */
+async function generate(){
+  clearErr();
+  if(!files.length){ showErr('Please add at least one photo or PDF of the discharge summary.'); return; }
+  $('goBtn').disabled=true;
+  try{
+    status('Reading '+files.length+' page'+(files.length>1?'s':'')+' — extracting every value…');
+    const parts=[];
+    const imgs=await Promise.all(files.map(f=>b64(f).catch(()=>null)));
+    imgs.forEach((b,i)=>{ if(b){ parts.push({text:'=== PAGE '+(i+1)+' OF '+files.length+' ==='}); parts.push({inlineData:{mimeType:'image/jpeg',data:b}}); } });
+    if(!parts.length) throw new Error('Could not read the uploaded images. Please retake the photos.');
+    parts.push({text: extractPrompt(files.length)});
+
+    const raw = await gemini(parts, SYS_EXTRACT, 40000);
+    DATA = parseJSON(raw);
+    DATA.patient=DATA.patient||{}; DATA.stay=DATA.stay||{}; DATA.hospital=DATA.hospital||{};
+
+    // Show the discharge summary at once — the patient page and diet sheet
+    // are written in the background while the doctor is already checking it.
+    const lang = $('langSel').value;
+    EXTRA = {patient:{},diet:{},_lang:lang,_pending:true};
+    renderDoc(); renderPatient(); renderDiet();
+    setEdit(true);
+    $('output').style.display='block';
+    $('actionBar').classList.add('on');
+    const ur=arr(DATA.unreadable);
+    toast('<b>✅ Discharge summary ready.</b> '+(ur.length?'<br>Could not read: '+esc(ur.join('; '))+' — use <b>Edit fields</b> to fill these in.':'Check the values while the patient page is being written.'), ur.length?12000:6000);
+    window.scrollTo({top:$('output').offsetTop-70, behavior:'smooth'});
+
+    status('Writing the patient page and diet sheet in '+(LANGS[lang]||LANGS.mr).label+'…');
+    try{
+      const raw2 = await gemini([{text: patientPrompt(DATA, lang)}], SYS_PATIENT, 32000);
+      const nx = parseJSON(raw2); nx._lang = lang; EXTRA = nx;
+      renderPatient(); renderDiet(); setEdit(editMode);
+      status('',false);
+      toast('<b>✅ Patient page and diet sheet ready.</b>',4500);
+    }catch(e2){
+      console.warn('patient pass failed', e2);
+      EXTRA={patient:{},diet:{},_lang:lang,_failed:true};
+      renderPatient(); renderDiet(); setEdit(editMode);
+      status('',false);
+      toast('<b>Note:</b> the discharge summary is ready, but the patient and diet pages could not be written. Change the language and change it back to retry.', 10000);
+    }
+  }catch(e){
+    console.error(e);
+    showErr('<b>⚠️ '+ (e.message||'Something went wrong') +'</b>');
+  }finally{
+    $('goBtn').disabled=false;
+  }
+}
+
+/* External data hook — lets an EMR / extension feed a record straight in,
+   and lets the app be tested without an API call. */
+window.DSAI_LOAD = function(data, extra){
+  DATA = data||{}; DATA.patient=DATA.patient||{}; DATA.stay=DATA.stay||{}; DATA.hospital=DATA.hospital||{};
+  EXTRA = extra||{patient:{},diet:{}};
+  renderDoc(); renderPatient(); renderDiet(); setEdit(true);
+  document.getElementById('output').style.display='block';
+  document.getElementById('actionBar').classList.add('on');
+  return true;
+};
+
+/* ============================================================
+   11.  WIRING
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  // brand mark in the header
+  try{ if(SPANDAN_LOGO && SPANDAN_LOGO.indexOf('data:')===0) $('brandLogo').src = SPANDAN_LOGO; }catch(e){}
+
+  $('camBtn').onclick = ()=>$('camInput').click();
+  $('fileBtn').onclick= ()=>$('fileInput').click();
+  $('camInput').onchange = e=>{ addFiles(e.target.files); e.target.value=''; };
+  $('fileInput').onchange= e=>{ addFiles(e.target.files); e.target.value=''; };
+
+  const dz=$('drop');
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+  dz.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+
+  $('goBtn').onclick = generate;
+
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.onclick=()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active'); $(t.dataset.pane).classList.add('active');
+    };
+  });
+
+  // Switching language rewrites the patient + diet pages in that language
+  $('langSel').onchange = async ()=>{
+    if(!DATA || !EXTRA) return;
+    const L = $('langSel').value;
+    if(EXTRA._lang === L){ renderPatient(); renderDiet(); setEdit(editMode); return; }
+    renderPatient(); renderDiet(); setEdit(editMode);   // headings flip immediately
+    try{
+      status('Rewriting the patient page and diet sheet in '+(LANGS[L]||LANGS.mr).label+'…');
+      const raw = await gemini([{text: patientPrompt(DATA, L)}], SYS_PATIENT, 32000);
+      const nx = parseJSON(raw); nx._lang = L; EXTRA = nx;
+      status('',false);
+      toast('<b>✅ Rewritten in '+(LANGS[L]||LANGS.mr).label+'.</b> Any edits you had made on those two pages were replaced.',7000);
+    }catch(e){
+      status('',false);
+      toast('<b>Could not rewrite in that language:</b> '+esc(e.message)+'<br>Showing the previous version.',9000);
+    }
+    renderPatient(); renderDiet(); setEdit(editMode);
+  };
+  ['signDoc','signQual'].forEach(id=>$(id).addEventListener('input',()=>{ if(DATA){ renderDoc(); renderDiet(); setEdit(editMode); } }));
+  $('signDoc').value  = store.get('dsai_doc')  || 'Dr Gurunath Parale';
+  $('signQual').value = store.get('dsai_qual') || 'MD, DM, FACC, FCSI, FICP — Interventional Cardiologist';
+  $('signDoc').addEventListener('change',e=>store.set('dsai_doc',e.target.value));
+  $('signQual').addEventListener('change',e=>store.set('dsai_qual',e.target.value));
+  $('apiKey').value = store.get('dsai_key')||'';
+
+  $('editBtn').onclick = ()=>setEdit(!editMode);
+
+  $('printBtn').onclick = ()=>{
+    document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('skip-print'));
+    setEdit(false);
+    setTimeout(()=>window.print(), 120);
+  };
+
+  $('pdfBtn').onclick = ()=> pickPage('Download as PDF','Which page do you want to save?', async page=>{
+    try{
+      status('Building PDF…');
+      const b=await buildBlob(page);
+      const u=URL.createObjectURL(b), a=document.createElement('a');
+      a.href=u; a.download=pdfName(page.kind); document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u),5000);
+      status('',false);
+      toast('<b>✅ PDF saved</b> to your Downloads folder.',5000);
+    }catch(e){ status('',false); toast('<b>PDF failed:</b> '+esc(e.message),8000); }
+  });
+
+  $('docBtn').onclick = ()=> pickPage('Download as editable Word','Opens in Word / Google Docs / WPS — fully editable, keeps the colours.', page=>{
+    const n=(DATA&&DATA.patient&&DATA.patient.name||'Patient').replace(/[^A-Za-z0-9 ]/g,'').trim().replace(/\s+/g,'_')||'Patient';
+    if(page.id==='ALL') downloadWord(PAGES.map(p=>p.id), n+'_Discharge_Pack.doc', 'Discharge Summary');
+    else downloadWord([page.id], n+'_'+page.kind+'.doc', page.label);
+    toast('<b>📝 Word file saved.</b> Open it in Word or Google Docs and edit freely.',6000);
+  });
+
+  $('waDocBtn').onclick = ()=> openWa(PAGE_BY_KIND('Discharge_Summary'));
+  $('waPtBtn').onclick  = ()=> openWa(PAGE_BY_KIND('Patient_Pack'));
+  $('waBtn').onclick    = ()=> pickPage('Share on WhatsApp','Which page do you want to send?', page=>openWa(page));
+  $('pickCancel').onclick = ()=>$('pickModal').classList.remove('on');
+  $('waCancel').onclick   = ()=>$('waModal').classList.remove('on');
+
+  $('waAttach').onclick = async ()=>{
+    const page=waPending;
+    const num=cleanNum($('waNum').value); if(num&&page) store.set(waStoreKey(page),num);
+    $('waModal').classList.remove('on');
+    if(!page) return;
+    try{
+      status('Preparing PDF for WhatsApp…');
+      const blob = page._blob || await buildBlob(page);
+      status('',false);
+      const name = pdfName(page.kind);
+      const file = new File([blob], name, {type:'application/pdf'});
+      const msg  = waText(page);
+      const mobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file], title:name, text:(num?'To: +'+num+'\n\n':'')+msg});
+          toast('<b>✅ PDF shared.</b> Pick the WhatsApp contact in the share sheet.',6000);
+          return;
+        }catch(err){ if(err.name==='AbortError') return; }
+      }
+      const u=URL.createObjectURL(blob), a=document.createElement('a');
+      a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u),5000);
+      try{ await navigator.clipboard.writeText(msg); }catch(e){}
+      const url = num
+        ? (mobile?'whatsapp://send?phone='+num+'&text='+encodeURIComponent(msg):'https://api.whatsapp.com/send?phone='+num+'&text='+encodeURIComponent(msg))
+        : (mobile?'whatsapp://send?text='+encodeURIComponent(msg):'https://api.whatsapp.com/send?text='+encodeURIComponent(msg));
+      window.open(url,'_blank');
+      toast('<b>📥 PDF downloaded &amp; WhatsApp opened.</b><br>In WhatsApp: tap 📎 → <b>Document</b> → pick <b>'+esc(name)+'</b> from Downloads.',13000);
+    }catch(e){ status('',false); toast('<b>Sharing failed:</b> '+esc(e.message),8000); }
+  };
+
+  $('waText').onclick = ()=>{
+    const page=waPending;
+    const num=cleanNum($('waNum').value); if(num&&page) store.set(waStoreKey(page),num);
+    $('waModal').classList.remove('on');
+    if(!page) return;
+    const msg=waText(page);
+    const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const url = num
+      ? (mobile?'whatsapp://send?phone='+num+'&text='+encodeURIComponent(msg):'https://api.whatsapp.com/send?phone='+num+'&text='+encodeURIComponent(msg))
+      : (mobile?'whatsapp://send?text='+encodeURIComponent(msg):'https://api.whatsapp.com/send?text='+encodeURIComponent(msg));
+    window.open(url,'_blank');
+  };
+
+  $('resetBtn').onclick = ()=>{
+    if(!confirm('Clear this patient and start a new summary?')) return;
+    files=[]; DATA=null; EXTRA=null; renderGallery();
+    $('output').style.display='none'; $('actionBar').classList.remove('on');
+    $('ptWa').value=''; setEdit(false); clearErr(); status('',false);
+    $('goBtn').textContent='✨ Generate Discharge Summary';
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('pickModal').classList.remove('on'); $('waModal').classList.remove('on'); } });
+});
+})();
+</script>
+</body>
+</html>
