@@ -131,7 +131,9 @@ h4.sub{font-size:9.2pt;font-weight:800;letter-spacing:.8px;text-transform:upperc
 .dxshort{font-size:11.5pt;font-weight:800;color:var(--teal-900);line-height:1.25}
 .dxfull{font-size:9.2pt;color:var(--slate-700);margin-top:2px;line-height:1.4}
 .icd{flex:0 0 auto;background:#fff;border:1.5px solid var(--teal-700);color:var(--teal-800);font-size:8.6pt;font-weight:800;padding:3px 9px;border-radius:5px;letter-spacing:.4px;white-space:nowrap;margin-top:2px}
-.icd.none{border-color:var(--slate-200);color:var(--slate-400)}
+.icd.none{border-color:var(--slate-200);color:var(--slate-400);font-weight:600}
+.edit-on .icd{cursor:text}
+.dxpost .pchip b.none{color:var(--slate-400);background:var(--slate-50);border-color:var(--slate-200)}
 .dxtag{display:inline-block;font-size:7.4pt;font-weight:800;letter-spacing:.6px;text-transform:uppercase;background:var(--gold);color:#fff;padding:2px 7px;border-radius:4px;margin-left:7px;vertical-align:1px}
 
 /* Tables */
@@ -964,11 +966,11 @@ function dxBlock(list, procedures){
         ${has(d.full)&&norm(d.full)!==norm(d.short)?'<div class="dxfull">'+E(d.full)+'</div>':''}
         ${has(d.icdTitle)?'<div class="dxfull" style="font-size:8.4pt;color:var(--slate-600)">ICD-10: '+esc(d.icdTitle)+'</div>':''}
       </div>
-      <div class="icd${has(d.icd10)?'':' none'}">${esc(has(d.icd10)?d.icd10:'ICD —')}</div>
+      <div class="icd${has(d.icd10)?'':' none'}" title="ICD-10 code — click to correct or add">${E(d.icd10,'+ ICD')}</div>
     </div>`).join('');
   const postStrip = post.length ? `<div class="dxpost">
       <span class="lbl">Status post</span>
-      ${post.map(p=>'<span class="pchip">'+E(p.short||p.full)+(has(p.icd10)?'<b>'+esc(p.icd10)+'</b>':'')+'</span>').join('')}
+      ${post.map(p=>'<span class="pchip">'+E(p.short||p.full)+'<b class="'+(has(p.icd10)?'':'none')+'">'+E(p.icd10,'+ ICD')+'</b></span>').join('')}
       <span class="see">→ full details in Procedures below</span>
     </div>` : '';
   return `<div class="dxblock">
