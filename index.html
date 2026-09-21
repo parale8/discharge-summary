@@ -242,8 +242,11 @@ table.rx td:first-child{white-space:nowrap;text-align:center}
 /* Follow-up */
 .fu{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;margin-bottom:12px;break-inside:avoid}
 .fu.solo{grid-template-columns:1fr}
-.fu.solo .fubox .b{columns:2;column-gap:20px}
-.fu.solo .fubox .b>*{break-inside:avoid}
+.fugrid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:6px}
+.fu.solo .fugrid{grid-template-columns:1fr 1fr;gap:18px}
+.fugrp{break-inside:avoid;page-break-inside:avoid}
+.fugrp>b{display:block;font-size:8.2pt;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--teal-800);margin-bottom:3px}
+.fugrp ul{margin-left:15px}
 .fubox{border:1.5px solid var(--teal-700);border-radius:8px;overflow:hidden}
 .fubox .h{background:var(--teal-700);color:#fff;font-size:8.2pt;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;padding:5px 10px}
 .fubox .b{padding:9px 11px;font-size:9.2pt;line-height:1.55}
@@ -382,6 +385,7 @@ ul.tgiven{margin:0 0 10px 18px;font-size:9.4pt;line-height:1.6}
   .ptcell.wide,.ptcell.full{grid-column:span 2}
   .datestrip{grid-template-columns:repeat(2,1fr)}
   .fu,.do-dont,.dietgrid,.emg{grid-template-columns:1fr}
+  .fu.solo .fugrid{grid-template-columns:1fr}
   .ack{grid-template-columns:1fr 1fr}
   .ack .akc:nth-child(2n){border-right:0}
   .meals,.limits,.implant .ig{grid-template-columns:1fr 1fr}
@@ -418,6 +422,7 @@ html.pdf-rendering .ptcell.full{border-right:0}
 html.pdf-rendering .datestrip{grid-template-columns:repeat(4,1fr)}
 html.pdf-rendering .fu{grid-template-columns:1.15fr 1fr}
 html.pdf-rendering .fu.solo{grid-template-columns:1fr}
+html.pdf-rendering .fu.solo .fugrid{grid-template-columns:1fr 1fr}
 html.pdf-rendering .do-dont,html.pdf-rendering .dietgrid{grid-template-columns:1fr 1fr}
 html.pdf-rendering .emg{grid-template-columns:1.1fr 1fr}
 html.pdf-rendering .ack{grid-template-columns:1.4fr 1fr 1.2fr 1fr}
@@ -916,7 +921,7 @@ OUTPUT EXACTLY THIS JSON SHAPE (no extra keys, no markdown):
 NOTES ON SPECIFIC FIELDS
 - "schedule": the morning-afternoon-night pattern as printed, normalised to a clean form such as "1-0-1", "1/2-0-1/2", "0-1-0", or for insulin "10U-10U-10U".
 - "timing": "Before food", "After food", "Bedtime", "Empty stomach" etc. if stated or clinically standard; otherwise "".
-- "purpose": a 2-5 word plain reason, e.g. "Blood thinner after stent", "Controls heart failure".
+- "purpose": a 2-5 word plain reason, e.g. "Blood thinner after stent", "Controls heart failure". This is NOT printed on the discharge summary — it is the raw material for the patient page, so keep it in everyday words a patient would understand.
 - "hospitalCourse": a FULL formal narrative of the admission — do not abbreviate it. Write 8 to 14 sentences in continuous prose, in this order: (a) how the patient presented and in what state, with the admission vitals; (b) what the initial investigations showed, naming the actual abnormal values; (c) the medical treatment and supportive care given on the ward, including how any electrolyte or glycaemic derangement was corrected; (d) the indication for the procedure and what the procedure showed and achieved; (e) the post-procedure course, any complication or its absence, and the response to treatment; (f) the state of the patient at discharge with the discharge vitals. Never compress this into two or three lines — this paragraph is the medico-legal record of the admission.
 - "treatmentGiven": the significant treatment given DURING the stay (drips, diuretics, insulin infusion, sodium correction, antiplatelet loading, oxygen, inotropes etc.), one short line each, as far as the paper records it. Leave the array empty if the paper does not say.
 - "followUp.intervalText": e.g. "After 15 days".
@@ -1260,7 +1265,6 @@ function rxTable(list, interactions){
     <td class="dose">${E(m.schedule,'—')}</td>
     <td style="font-size:8.6pt">${esc(has(m.timing)?m.timing:'—')}</td>
     <td style="font-size:8.6pt">${esc(has(m.duration)?m.duration:'Continue')}</td>
-    <td class="purpose">${E(m.purpose)}</td>
   </tr>`).join('');
   // Interaction flags are a bedside check for the treating doctor only.
   // The .noprint class keeps them off the printed sheet, out of the PDF,
@@ -1270,7 +1274,7 @@ function rxTable(list, interactions){
       + '<div class="iph">💊 Interaction check · on screen only — not printed, not in the PDF, not shared</div>'
       + '<div class="ipb">'+items+'</div></div>' : '';
   return `<h3 class="sect teal">℞ Discharge Prescription</h3>
-  <table class="t rx"><thead><tr><th style="width:5%">#</th><th style="width:29%">Drug (generic)</th><th style="width:13%;text-align:center">Morn–Aft–Night</th><th style="width:13%">Timing</th><th style="width:13%">Duration</th><th>Purpose</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="t rx"><thead><tr><th style="width:6%">#</th><th style="width:40%">Drug (generic)</th><th style="width:16%;text-align:center">Morn–Aft–Night</th><th style="width:19%">Timing</th><th style="width:19%">Duration</th></tr></thead><tbody>${rows}</tbody></table>
   <div style="font-size:8.6pt;color:var(--crit);font-weight:700;margin-bottom:6px">⚠ Do not stop, change or add any medicine without the treating doctor's advice.</div>
   ${inter}`;
 }
@@ -1289,8 +1293,10 @@ function followUp(f, advice, emg){
       <div class="b">
         <div class="fudate">${E(f.date, f.intervalText||'To be advised')}</div>
         ${has(f.intervalText)?'<div style="font-size:8.6pt;color:var(--slate-600);margin-bottom:6px">'+esc(f.intervalText)+'</div>':''}
-        ${tests.length?'<b style="font-size:8.6pt;color:var(--teal-800)">BRING THESE REPORTS</b><ul>'+tests.map(t=>'<li>'+E(t)+'</li>').join('')+'</ul>':''}
-        ${(ins.length||adv.length)?'<b style="font-size:8.6pt;color:var(--teal-800);display:block;margin-top:6px">ADVICE</b><ul>'+ins.concat(adv).map(t=>'<li>'+E(t)+'</li>').join('')+'</ul>':''}
+        <div class="fugrid">
+        ${tests.length?'<div class="fugrp"><b>Bring these reports</b><ul>'+tests.map(t=>'<li>'+E(t)+'</li>').join('')+'</ul></div>':''}
+        ${(ins.length||adv.length)?'<div class="fugrp"><b>Advice</b><ul>'+ins.concat(adv).map(t=>'<li>'+E(t)+'</li>').join('')+'</ul></div>':''}
+        </div>
       </div>
     </div>
     ${showWarn ? `<div class="fubox red">
