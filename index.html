@@ -63,6 +63,8 @@ a{color:var(--teal-700)}
 .btn-ghost{background:#fff;color:var(--teal-800);border:1.5px solid var(--teal-700)}
 .btn-soft{background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200)}
 .btn-wa{background:#1fa855;color:#fff}.btn-wa:hover{background:#178943}
+.btn-clear{background:#fff;color:var(--crit);border:1.5px solid var(--crit-br)}
+.btn-clear:hover{background:var(--crit-bg);border-color:var(--crit)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn-lg{padding:14px 26px;font-size:1rem}
 /* visually hidden, but still clickable programmatically on mobile */
@@ -477,6 +479,7 @@ html.pdf-rendering .ref,html.pdf-rendering .dose{white-space:nowrap}
       <div class="btnrow">
         <button class="btn btn-primary" id="camBtn">📷 Take Photo</button>
         <button class="btn btn-ghost" id="fileBtn">📁 Choose Files / PDF</button>
+        <button class="btn btn-clear" id="clearBtn" title="Discard this patient and start again">🗑 Clear all &amp; start new</button>
       </div>
       <input class="filein" type="file" id="camInput" accept="image/*" capture="environment">
       <input class="filein" type="file" id="fileInput" accept="image/*,application/pdf" multiple>
@@ -555,7 +558,7 @@ html.pdf-rendering .ref,html.pdf-rendering .dose{white-space:nowrap}
   <button class="btn btn-wa" id="waDocBtn">💬 WhatsApp — Summary</button>
   <button class="btn btn-wa" id="waPtBtn">💬 WhatsApp — Patient</button>
   <button class="btn btn-soft" id="waBtn">💬 Other…</button>
-  <button class="btn btn-soft" id="resetBtn">↺ New patient</button>
+  <button class="btn btn-clear" id="resetBtn">🗑 Clear all &amp; start new</button>
 </div>
 
 <!-- ===== MODALS ===== -->
@@ -2176,14 +2179,41 @@ document.addEventListener('DOMContentLoaded', ()=>{
     window.open(url,'_blank');
   };
 
-  $('resetBtn').onclick = ()=>{
-    if(!confirm('Clear this patient and start a new summary?')) return;
-    files=[]; DATA=null; EXTRA=null; renderGallery();
-    $('output').style.display='none'; $('actionBar').classList.remove('on');
-    $('ptWa').value=''; setEdit(false); clearErr(); status('',false);
+  /* ---- Clear everything and start a fresh analysis ----------------------
+     Wipes the previous patient completely so nothing can carry over into the
+     next summary. The consultant's own name and qualification are kept,
+     since those are the same for every patient. */
+  function clearAll(ask){
+    const hasWork = files.length || DATA || EXTRA;
+    if(ask && hasWork && !confirm('Clear this patient completely and start a new analysis?\n\nThe photos, the generated summary and any edits you have made will be discarded.')) return;
+
+    files=[]; DATA=null; EXTRA=null; waBlob=null; waPending=null;
+    CAPLOG.length=0;
+
+    setEdit(false);
+    ['sheetDoc','sheetPt','sheetDiet'].forEach(id=>{ const el=$(id); if(el){ el.innerHTML=''; el.removeAttribute('contenteditable'); el.className='sheet'; } });
+    $('output').style.display='none';
+    $('actionBar').classList.remove('on');
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+    document.querySelectorAll('.tabpane').forEach((t,i)=>t.classList.toggle('active',i===0));
+
+    renderGallery();
+    const cl=$('capLog'); if(cl) cl.innerHTML='';
+    const cw=$('capWrap'); if(cw){ cw.style.display='none'; cw.removeAttribute('open'); }
+
+    $('ptWa').value='';
+    const wn=$('waNum'); if(wn) wn.value='';
+    $('pickModal').classList.remove('on');
+    $('waModal').classList.remove('on');
+    clearErr(); status('',false);
+    $('goBtn').disabled=true;
     $('goBtn').textContent='✨ Generate Discharge Summary';
+
     window.scrollTo({top:0,behavior:'smooth'});
-  };
+    if(hasWork) toast('<b>🗑 Cleared.</b> Ready for the next patient.',3500);
+  }
+  $('resetBtn').onclick = ()=>clearAll(true);
+  $('clearBtn').onclick = ()=>clearAll(true);
 
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('pickModal').classList.remove('on'); $('waModal').classList.remove('on'); } });
 });
