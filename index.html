@@ -40,8 +40,7 @@ a{color:var(--teal-700)}
 .appbar .mark img[src] + span{display:none}
 .appbar h1{font-size:1.18rem;font-weight:800;letter-spacing:-.3px;line-height:1.15}
 .appbar p{font-size:.76rem;color:#bfe6e0;font-weight:500;margin-top:2px}
-.appbar .byline{font-size:.8rem;color:#eafaf7;font-weight:600;margin-top:3px;letter-spacing:.1px}
-.appbar .byline b{color:#fff;font-weight:800}
+.appbar .byline{font-size:.68rem;color:#a9d9d2;font-weight:500;margin-top:2px;letter-spacing:.2px}
 .appbar .brandtext{min-width:0}
 .appbar .spacer{flex:1}
 .appbar .ver{font-size:.68rem;background:rgba(255,255,255,.13);padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22)}
@@ -232,8 +231,13 @@ table.rx td:first-child{white-space:nowrap;text-align:center}
 .gen{font-size:8.4pt;color:var(--teal-800);font-weight:600;font-style:italic;display:block;margin-top:1px}
 .dose{font-family:'Inter',monospace;font-weight:800;font-size:10pt;letter-spacing:1px;color:var(--slate-900);text-align:center;white-space:nowrap}
 .purpose{font-size:8.4pt;color:var(--slate-600)}
-.interact{border:1px solid var(--warn-br);background:var(--warn-bg);border-radius:7px;padding:8px 11px;font-size:8.8pt;color:#7c3d05;margin-bottom:10px;line-height:1.5}
+.interact{border:1px solid var(--warn-br);background:var(--warn-bg);border-radius:7px;padding:8px 11px;font-size:8.8pt;color:#7c3d05;margin-bottom:8px;line-height:1.5}
 .interact b{color:var(--warn)}
+.interact:last-child{margin-bottom:0}
+/* screen-only clinical aid — stripped from print, PDF, Word and WhatsApp */
+.interact-panel{border:1.5px dashed var(--warn-br);border-radius:9px;overflow:hidden;margin:12px 0 4px;background:#fffdf8}
+.interact-panel .iph{background:var(--warn-bg);color:var(--warn);font-size:7.8pt;font-weight:800;letter-spacing:.7px;text-transform:uppercase;padding:6px 11px;border-bottom:1px dashed var(--warn-br)}
+.interact-panel .ipb{padding:9px 11px}
 
 /* Follow-up */
 .fu{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;margin-bottom:12px;break-inside:avoid}
@@ -278,6 +282,7 @@ h3.sect.red{background:var(--crit)}
 /* Treatment given during the stay */
 ul.tgiven{margin:0 0 10px 18px;font-size:9.4pt;line-height:1.6}
 .summary-txt.synth{margin-top:9px;border-left-color:var(--gold);background:#fdfaf2}
+.summary-txt.synth b{display:block;margin-bottom:3px;color:#7a5c18;letter-spacing:.2px}
 
 /* Acknowledgement of receipt */
 .ack{display:grid;grid-template-columns:1.4fr 1fr 1.2fr 1fr;gap:0;border:1px solid var(--slate-200);border-radius:7px;overflow:hidden;margin-top:10px;break-inside:avoid}
@@ -381,8 +386,7 @@ ul.tgiven{margin:0 0 10px 18px;font-size:9.4pt;line-height:1.6}
   .ack .akc:nth-child(2n){border-right:0}
   .meals,.limits,.implant .ig{grid-template-columns:1fr 1fr}
   .appbar h1{font-size:1rem}
-  .appbar .byline{font-size:.72rem;line-height:1.35}
-  .appbar .byline .q{display:none}
+  .appbar .byline{font-size:.64rem}
   .appbar .brandtext p:last-child{display:none}
   .appbar .mark{width:40px;height:40px}
   .toast{top:auto;bottom:calc(100% - 160px);left:12px;right:12px;max-width:none}
@@ -459,7 +463,7 @@ html.pdf-rendering .ref,html.pdf-rendering .dose{white-space:nowrap}
     <div class="mark"><img id="brandLogo" alt=""><span id="brandFallback">🩺</span></div>
     <div class="brandtext">
       <h1>Discharge Summary AI</h1>
-      <p class="byline">Developed by <b>Dr Gurunath Parale</b> · MD, DM, FACC, FCSI, FICP — Interventional Cardiologist, Solapur</p>
+      <p class="byline">Developed by Dr Gurunath Parale</p>
       <p>Photograph an old summary → get a clean, coded, patient-ready one</p>
     </div>
     <div class="spacer"></div>
@@ -898,7 +902,6 @@ OUTPUT EXACTLY THIS JSON SHAPE (no extra keys, no markdown):
    "special":[{"name":"","date":"","findings":[""],"impression":"","status":"normal|abnormal|critical|unknown"}]
  },
  "hospitalCourse":"",
- "clinicalSummary":"",
  "treatmentGiven":[""],
  "prescription":[{"brand":"","generic":"","strength":"","form":"Tab|Cap|Inj|Syp|Drop|Other","schedule":"","timing":"","duration":"","purpose":"","route":""}],
  "interactions":[{"drugs":[""],"severity":"minor|moderate|major","note":""}],
@@ -915,7 +918,6 @@ NOTES ON SPECIFIC FIELDS
 - "timing": "Before food", "After food", "Bedtime", "Empty stomach" etc. if stated or clinically standard; otherwise "".
 - "purpose": a 2-5 word plain reason, e.g. "Blood thinner after stent", "Controls heart failure".
 - "hospitalCourse": a FULL formal narrative of the admission — do not abbreviate it. Write 8 to 14 sentences in continuous prose, in this order: (a) how the patient presented and in what state, with the admission vitals; (b) what the initial investigations showed, naming the actual abnormal values; (c) the medical treatment and supportive care given on the ward, including how any electrolyte or glycaemic derangement was corrected; (d) the indication for the procedure and what the procedure showed and achieved; (e) the post-procedure course, any complication or its absence, and the response to treatment; (f) the state of the patient at discharge with the discharge vitals. Never compress this into two or three lines — this paragraph is the medico-legal record of the admission.
-- "clinicalSummary": a separate 3-5 sentence synthesis for the referring doctor — diagnosis, what was done, key residual problems, what the GP must watch.
 - "treatmentGiven": the significant treatment given DURING the stay (drips, diuretics, insulin infusion, sodium correction, antiplatelet loading, oxygen, inotropes etc.), one short line each, as far as the paper records it. Leave the array empty if the paper does not say.
 - "followUp.intervalText": e.g. "After 15 days".
 - "followUp.date": compute the actual calendar date from the discharge date + the stated interval, if an interval is stated.
@@ -1260,11 +1262,17 @@ function rxTable(list, interactions){
     <td style="font-size:8.6pt">${esc(has(m.duration)?m.duration:'Continue')}</td>
     <td class="purpose">${E(m.purpose)}</td>
   </tr>`).join('');
-  const inter = arr(interactions).map(x=>'<div class="interact"><b>⚠ '+esc((x.severity||'note').toUpperCase())+' — '+esc(arr(x.drugs).join(' + '))+':</b> '+esc(x.note)+'</div>').join('');
+  // Interaction flags are a bedside check for the treating doctor only.
+  // The .noprint class keeps them off the printed sheet, out of the PDF,
+  // out of the Word export and out of anything shared on WhatsApp.
+  const items = arr(interactions).map(x=>'<div class="interact"><b>⚠ '+esc((x.severity||'note').toUpperCase())+' — '+esc(arr(x.drugs).join(' + '))+':</b> '+esc(x.note)+'</div>').join('');
+  const inter = items ? '<div class="interact-panel noprint" contenteditable="false">'
+      + '<div class="iph">💊 Interaction check · on screen only — not printed, not in the PDF, not shared</div>'
+      + '<div class="ipb">'+items+'</div></div>' : '';
   return `<h3 class="sect teal">℞ Discharge Prescription</h3>
   <table class="t rx"><thead><tr><th style="width:5%">#</th><th style="width:29%">Drug (generic)</th><th style="width:13%;text-align:center">Morn–Aft–Night</th><th style="width:13%">Timing</th><th style="width:13%">Duration</th><th>Purpose</th></tr></thead><tbody>${rows}</tbody></table>
-  ${inter}
-  <div style="font-size:8.6pt;color:var(--crit);font-weight:700;margin-bottom:6px">⚠ Do not stop, change or add any medicine without the treating doctor's advice.</div>`;
+  <div style="font-size:8.6pt;color:var(--crit);font-weight:700;margin-bottom:6px">⚠ Do not stop, change or add any medicine without the treating doctor's advice.</div>
+  ${inter}`;
 }
 
 function followUp(f, advice, emg){
@@ -1406,11 +1414,10 @@ function renderDoc(){
        </tbody></table>` : '') +
     procBlock(d.procedures) + orphanImplants(d) +
     (invBody ? '<h3 class="sect">🔬 Investigations</h3>'+invBody : '') +
-    (has(d.hospitalCourse)||has(d.clinicalSummary)||arr(d.treatmentGiven).length ?
+    (has(d.hospitalCourse)||arr(d.treatmentGiven).length ?
       '<h3 class="sect">📝 Clinical Summary &amp; Course in Hospital</h3>'+
       (has(d.hospitalCourse)?'<div class="summary-txt">'+E(d.hospitalCourse)+'</div>':'')+
-      (arr(d.treatmentGiven).length?'<h4 class="sub">💉 Treatment given during the stay</h4><ul class="tgiven">'+arr(d.treatmentGiven).map(x=>'<li>'+E(x)+'</li>').join('')+'</ul>':'')+
-      (has(d.clinicalSummary)?'<div class="summary-txt synth"><b>Summary for the referring doctor:</b> '+E(d.clinicalSummary)+'</div>':'')
+      (arr(d.treatmentGiven).length?'<h4 class="sub">💉 Treatment given during the stay</h4><ul class="tgiven">'+arr(d.treatmentGiven).map(x=>'<li>'+E(x)+'</li>').join('')+'</ul>':'')
       : '') +
     rxTable(d.prescription, d.interactions) +
     followUp(d.followUp, d.advice, d.emergency) +
