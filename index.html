@@ -303,6 +303,14 @@ ul.tgiven{margin:0 0 10px 18px;font-size:9.4pt;line-height:1.6}
 .langbar .lpill:hover{border-color:var(--teal-700);color:var(--teal-800)}
 .langbar .lpill.on{background:var(--teal-700);border-color:var(--teal-700);color:#fff}
 .langbar .lpill.on i{opacity:.85}
+/* ready / still preparing */
+.langbar .lpill::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--slate-200);flex:0 0 auto;align-self:center;transition:.2s}
+.langbar .lpill.ready::before{background:var(--ok)}
+.langbar .lpill.on::before{background:rgba(255,255,255,.55)}
+.langbar .lpill.on.ready::before{background:#7ef0c4}
+.langbar .lpill.loading::before{background:var(--warn);animation:pulseDot .9s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{opacity:.35}50%{opacity:1}}
+.langbar .hint{font-size:7.2pt;color:var(--slate-400);margin-left:auto;align-self:center}
 
 /* Patient page */
 .pp-hero{background:linear-gradient(115deg,var(--teal-800),var(--teal-600));color:#fff;border-radius:11px;padding:14px 16px;margin-bottom:13px}
@@ -373,6 +381,15 @@ ul.tgiven{margin:0 0 10px 18px;font-size:9.4pt;line-height:1.6}
 .modal h3{font-size:1.05rem;font-weight:800;color:var(--teal-900);margin-bottom:5px}
 .modal p{font-size:.86rem;color:var(--slate-600);margin-bottom:14px}
 .modal .btn{width:100%;justify-content:center;margin-bottom:8px}
+.ckrow{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1.5px solid var(--slate-200);border-radius:11px;margin-bottom:8px;cursor:pointer;font-size:.93rem;font-weight:600;color:var(--slate-700);transition:.15s;user-select:none}
+.ckrow:hover{border-color:var(--teal-700)}
+.ckrow input{position:absolute;opacity:0;width:0;height:0}
+.ckrow .ck{width:21px;height:21px;border-radius:6px;border:2px solid var(--slate-400);flex:0 0 auto;display:grid;place-items:center;transition:.15s}
+.ckrow input:checked ~ .ck{background:var(--teal-700);border-color:var(--teal-700)}
+.ckrow input:checked ~ .ck::after{content:'✓';color:#fff;font-size:13px;font-weight:900;line-height:1}
+.ckrow input:checked ~ .lb{color:var(--teal-900)}
+.ckrow:has(input:checked){border-color:var(--teal-700);background:var(--teal-50)}
+.ckrow input:focus-visible ~ .ck{outline:2px solid var(--teal-700);outline-offset:2px}
 .toast{position:fixed;top:78px;right:18px;z-index:300;background:var(--slate-900);color:#fff;border-radius:12px;padding:13px 17px;font-size:.84rem;line-height:1.55;max-width:400px;box-shadow:0 14px 32px rgba(0,0,0,.35);opacity:0;transform:translateY(-12px);transition:.25s;pointer-events:none}
 .toast.on{opacity:1;transform:none;pointer-events:auto}
 .toast b{color:#5eead4}
@@ -533,6 +550,7 @@ html.pdf-rendering .ref,html.pdf-rendering .dose{white-space:nowrap}
           <p class="muted" style="margin-top:6px">Free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. Stored only in this browser.</p>
         </div>
       </div>
+      <label class="ckrow" style="margin-top:10px"><input type="checkbox" id="prefetchChk" checked><span class="ck"></span><span class="lb">Prepare all four languages in the background<br><span style="font-weight:500;font-size:.78rem;color:var(--slate-600)">Switching language becomes instant. Uses a few more API calls per patient — untick if the shared key runs out.</span></span></label>
     </details>
 
     <div style="margin-top:18px;text-align:center">
@@ -561,7 +579,7 @@ html.pdf-rendering .ref,html.pdf-rendering .dose{white-space:nowrap}
 <!-- ===== ACTION BAR ===== -->
 <div class="actionbar noprint" id="actionBar">
   <button class="btn btn-soft" id="editBtn">✏️ Edit fields</button>
-  <button class="btn btn-dark" id="printBtn">🖨️ Print all 3 pages</button>
+  <button class="btn btn-dark" id="printBtn">🖨️ Print…</button>
   <button class="btn btn-primary" id="pdfBtn">⬇️ Download PDF</button>
   <button class="btn btn-ghost" id="docBtn">📝 Editable Word</button>
   <button class="btn btn-wa" id="waDocBtn">💬 WhatsApp — Summary</button>
@@ -577,6 +595,19 @@ html.pdf-rendering .ref,html.pdf-rendering .dose{white-space:nowrap}
     <p id="pickSub">Choose what to send or save.</p>
     <div id="pickBody"></div>
     <button class="btn btn-soft" id="pickCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="modal" id="pickTickModal">
+  <div class="box">
+    <h3 id="tkTitle">🖨️ What do you want to print?</h3>
+    <p id="tkSub">Tick the pages you need. Everything is ticked by default.</p>
+    <label class="ckrow"><input type="checkbox" class="tkbox" value="sheetDoc" checked><span class="ck"></span><span class="lb">📋 Discharge Summary</span></label>
+    <label class="ckrow"><input type="checkbox" class="tkbox" value="sheetPt" checked><span class="ck"></span><span class="lb">🧑 Patient page</span></label>
+    <label class="ckrow"><input type="checkbox" class="tkbox" value="sheetDiet" checked><span class="ck"></span><span class="lb">🥗 Diet &amp; lifestyle</span></label>
+    <p id="tkWarn" class="muted" style="display:none;color:var(--crit);font-size:.8rem;margin:2px 0 10px">Tick at least one page.</p>
+    <button class="btn btn-dark" id="tkGo">🖨️ Print selected</button>
+    <button class="btn btn-soft" id="tkCancel">Cancel</button>
   </div>
 </div>
 
@@ -953,7 +984,7 @@ PART A — a patient-and-family explanation, written in BOTH:
   • "loc" = simple everyday spoken ${L.label} (${L.name}) — the way a person actually talks at home, NOT formal textbook ${L.label}. Use the ${L.label} script.
 Both versions must say the same things. No medical jargon; where a medical word is unavoidable, explain it in one short phrase.
 
-PART B — a therapeutic diet and lifestyle prescription built specifically around this patient's comorbidities (${(d.comorbidities||[]).join(', ') || 'as found in the record'}), age (${d.patient&&d.patient.age||'?'}), and Indian (Maharashtra / Solapur) eating habits. Use real Indian foods by their common names. Keep every line specific and actionable — quantities, not vague advice. Respect all comorbidities together: if heart failure and CKD are both present, salt and fluid and potassium all matter; if diabetes is present, carbohydrate quality matters; if hyponatraemia occurred, say so plainly.
+PART B — a therapeutic diet and lifestyle prescription, WRITTEN ENTIRELY IN ${L.name} (${L.label}), using the ${L.label} script — every value of every field, including the headline, the food names, the meal contents and the exercise advice. Build it specifically around this patient's comorbidities (${(d.comorbidities||[]).join(', ') || 'as found in the record'}), age (${d.patient&&d.patient.age||'?'}), and Indian (Maharashtra / Solapur) eating habits. Use real Indian foods by their common names. Keep every line specific and actionable — quantities, not vague advice. Respect all comorbidities together: if heart failure and CKD are both present, salt and fluid and potassium all matter; if diabetes is present, carbohydrate quality matters; if hyponatraemia occurred, say so plainly.
 
 OUTPUT EXACTLY THIS JSON (no markdown, no commentary):
 {
@@ -987,11 +1018,7 @@ OUTPUT EXACTLY THIS JSON (no markdown, no commentary):
    "limits":{"salt":"","fluid":"","calories":"","protein":"","potassium":"","sugar":""},
    "exercise":{"type":"","intensity":"","duration":"","progression":"","cautions":[""]},
    "lifestyle":[""],
-   "monitoring":[""],
-   "localHeadline":"",
-   "localAvoid":[""],
-   "localEat":[""],
-   "localTips":[""]
+   "monitoring":[""]
  }
 }
 
@@ -1000,8 +1027,8 @@ RULES
 - "testFindings": pick the 4-8 findings that actually matter to the patient. "tone" = good / watch / serious.
 - "keyMedicines": every discharge drug, named by the brand on the prescription, each with a one-line everyday reason.
 - "warningSigns": specific, e.g. "chest pain that does not settle in 5 minutes", "breathlessness on lying flat", "swelling of both feet", "weight gain of 2 kg in 3 days".
-- "limits" values must be concrete, e.g. salt "Less than 3 g a day (about ½ teaspoon)", fluid "1.5 litres a day including tea, milk and water".
-- "localAvoid", "localEat", "localTips": the same dietary content written in ${L.name} so the family can read it directly.
+- "limits" values must be concrete, e.g. "less than 3 g a day (about half a teaspoon)" and "1.5 litres a day including tea, milk and water" — expressed in ${L.name}.
+- Every field of "diet" is in ${L.name} — this sheet is handed to the family, so nothing in it should be in English unless ${L.label} IS English. Keep the numbers and units as digits (3 g, 1.5 litres, 30 minutes).
 - Use "" or [] where genuinely not applicable. Never leave a key out.
 `;
 }
@@ -1341,11 +1368,12 @@ function emergencyBlock(e, f){
 }
 
 /* Language switcher shown on the patient and diet sheets themselves */
-function langBar(active){
-  return '<div class="langbar noprint">'
+function langBar(active, scope){
+  return '<div class="langbar noprint" data-scope="'+(scope||'patient')+'">'
     + '<span class="lbl">Language of this page</span>'
     + Object.keys(LANGS).map(k=>'<button type="button" class="lpill'+(k===active?' on':'')+'" data-lang="'+k+'">'
         + esc(LANGS[k].name) + (k==='en'?'':' <i>'+esc(LANGS[k].label)+'</i>') + '</button>').join('')
+    + '<span class="hint">● ready</span>'
     + '</div>';
 }
 function wireLangBar(root){
@@ -1355,9 +1383,9 @@ function wireLangBar(root){
     b.onclick=e=>{
       e.preventDefault(); e.stopPropagation();
       const L=b.dataset.lang;
-      if(L===$('langSel').value) return;
-      $('langSel').value=L;
-      $('langSel').dispatchEvent(new Event('change'));
+      const scope=(b.closest('.langbar')||{}).dataset ? b.closest('.langbar').dataset.scope : 'patient';
+      if(scope==='diet'){ if(L!==curDietLang()) setDietLang(L); return; }
+      if(L!==$('langSel').value) setPatientLang(L);
     };
   });
 }
@@ -1446,8 +1474,8 @@ function renderPatient(){
   const lang = $('langSel').value;
   const L = LANGS[lang]||LANGS.mr;
   const pack = (EXTRA&&EXTRA.patient) || {};
-  const loc = (lang==='en') ? (pack.en||{}) : (pack.loc||pack.en||{});
-  const en  = pack.en||{};
+  const en  = PT_CACHE.en || pack.en || {};
+  const loc = PT_CACHE[lang] || ((EXTRA&&EXTRA._lang===lang) ? (pack.loc||en) : en);
   const d = DATA, p=d.patient||{};
   const sheet=$('sheetPt');
   sheet.className = 'sheet '+(lang==='en'?'':L.font);
@@ -1460,11 +1488,12 @@ function renderPatient(){
   const findings = arr(loc.testFindings).length?arr(loc.testFindings):arr(en.testFindings);
   const meds = arr(loc.keyMedicines).length?arr(loc.keyMedicines):arr(en.keyMedicines);
 
-  const pend = EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
+  const pend = langBusy('pt',lang) ? '<div class="pending">⏳ '+esc('Writing this page in '+(LANGS[lang]||LANGS.mr).label+'…')+'</div>'
+    : EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
       ? '⚠️ This page could not be written. Switch the language and switch back to try again.'
       : '⏳ Being written in '+(LANGS[lang]||LANGS.mr).label+' — the discharge summary on the first tab is ready now.')+'</div>' : '';
   sheet.innerHTML =
-    fmtHospital(d.hospital) + langBar(lang) + pend +
+    fmtHospital(d.hospital) + langBar(lang,'patient') + pend +
     `<div class="pp-hero">
        <div class="t">${esc(loc.title||'तुमच्या आजाराची माहिती')}</div>
        <div class="s">${esc(loc.subtitle||'')}</div>
@@ -1505,7 +1534,7 @@ function renderPatient(){
     (has(loc.followUp)?`<div class="pp-sec"><div class="h">📅 ${esc(U.s7)}</div><div class="b">${esc(loc.followUp)}</div></div>`:'') +
     (has(loc.closing)?`<div style="text-align:center;font-size:10.5pt;font-style:italic;color:var(--teal-800);margin-top:12px;padding:10px;background:var(--teal-50);border-radius:8px">${esc(loc.closing)}</div>`:'') +
     credit();
-  wireLangBar(sheet);
+  wireLangBar(sheet); paintLangPills();
 }
 
 /* ============================================================
@@ -1513,70 +1542,265 @@ function renderPatient(){
    ============================================================ */
 const COMO={cad:'Coronary artery disease',post_pci:'Post-PCI / stented',heart_failure:'Heart failure',diabetes:'Type 2 diabetes',hypertension:'Hypertension',ckd:'Chronic kidney disease',dyslipidemia:'Dyslipidaemia',obesity:'Obesity',anemia:'Anaemia',thyroid:'Thyroid disorder',copd:'COPD',stroke:'Previous stroke',liver_disease:'Liver disease',gout:'Gout / hyperuricaemia',hyponatremia:'Hyponatraemia',elderly:'Elderly (frailty care)',af:'Atrial fibrillation',smoker:'Smoker'};
 
+/* ============================================================
+   Language machinery — cached, incremental, pre-warmed.
+
+   Switching language used to re-run the whole clinical pass from the
+   photographs (30-60 s) EVERY time, even back to a language already seen.
+   Now: each language is translated once from the finished text, cached for
+   the rest of the case, and the three unused languages are quietly warmed
+   in the background while the doctor is checking the summary — so a tap is
+   usually instant.
+   ============================================================ */
+const PT_CACHE   = {};     // lang -> patient pack in that language
+const DIET_CACHE = {};     // lang -> diet pack in that language
+const INFLIGHT   = {};     // 'pt:mr' -> Promise, so a tap joins a running prefetch
+let   prefetchOn = true;
+
+function seedCaches(){
+  if(!EXTRA) return;
+  const pk = EXTRA.patient||{};
+  if(pk.en) PT_CACHE.en = pk.en;
+  const L = EXTRA._lang || $('langSel').value;
+  if(pk.loc) PT_CACHE[L] = pk.loc;
+  else if(pk.en) PT_CACHE[L] = pk.en;
+  if(EXTRA.diet && Object.keys(EXTRA.diet).length) DIET_CACHE[L] = EXTRA.diet;
+}
+function clearLangCaches(){
+  [PT_CACHE,DIET_CACHE,INFLIGHT].forEach(o=>Object.keys(o).forEach(k=>delete o[k]));
+}
+const langReady = (kind,lang)=> !!(kind==='pt'?PT_CACHE:DIET_CACHE)[lang];
+const langBusy  = (kind,lang)=> !!INFLIGHT[kind+':'+lang];
+
+const SYS_TRANSLATE = "You are a medical translator who writes the way families actually speak at home. You translate faithfully — never adding, never dropping, never softening a clinical fact or a number — and you never use textbook or officialese wording. Output STRICT JSON only, with exactly the keys you were given.";
+
+function translatePtPrompt(pack, langCode){
+  const L = LANGS[langCode] || LANGS.mr;
+  return `
+Translate this patient explanation into simple everyday spoken ${L.label} (${L.name}), in the ${L.label} script.
+
+${JSON.stringify(pack).slice(0, 14000)}
+
+RULES
+- Return EXACTLY the same JSON keys and the same array lengths, in the same order.
+- Keep every number, dose, date and measurement exactly as it is.
+- "severity" stays one of: mild, moderate, severe — do NOT translate that one value. Translate "severityWord".
+- "tone" stays one of: good, watch, serious — do NOT translate those values.
+- Medicine brand names stay recognisable; write them in the ${L.label} script the way a chemist's label would.
+- Write the way a person talks at home, not the way a textbook is written.
+`;
+}
+
+/* One fetch per (kind, language); a second request joins the first. */
+function fetchLang(kind, lang){
+  const key = kind+':'+lang;
+  if(INFLIGHT[key]) return INFLIGHT[key];
+  const cache = kind==='pt' ? PT_CACHE : DIET_CACHE;
+  if(cache[lang]) return Promise.resolve(cache[lang]);
+  if(!EXTRA) return Promise.reject(new Error('nothing to translate yet'));
+
+  const src = kind==='pt'
+    ? (PT_CACHE.en || (EXTRA.patient&&EXTRA.patient.en) || {})
+    : (DIET_CACHE[EXTRA._lang] || EXTRA.diet || {});
+  if(!Object.keys(src).length) return Promise.reject(new Error('nothing to translate yet'));
+
+  const p = gemini(
+      [{text: kind==='pt' ? translatePtPrompt(src, lang) : dietPrompt(src, lang)}],
+      kind==='pt' ? SYS_TRANSLATE : SYS_DIET, 16000)
+    .then(raw=>{ const o=parseJSON(raw); cache[lang]=o; return o; })
+    .finally(()=>{ delete INFLIGHT[key]; });
+  INFLIGHT[key] = p;
+  return p;
+}
+
+/* Warm the languages the doctor has not asked for yet, quietly, one at a
+   time, while they are reading the discharge summary. */
+async function prefetchLanguages(){
+  if(!prefetchOn || !EXTRA) return;
+  const order = ['mr','hi','kn','en'];
+  for(const kind of ['pt','diet']){
+    for(const L of order){
+      if(!prefetchOn || !EXTRA) return;
+      if(langReady(kind,L) || langBusy(kind,L)) continue;
+      try{ await fetchLang(kind,L); paintLangPills(); }
+      catch(e){ console.warn('prefetch',kind,L,e && e.message); }
+      await new Promise(r=>setTimeout(r,250));
+    }
+  }
+}
+
+/* small state dot on each pill: ready / loading / not yet */
+function paintLangPills(){
+  document.querySelectorAll('.langbar').forEach(bar=>{
+    const kind = bar.dataset.scope==='diet' ? 'diet' : 'pt';
+    bar.querySelectorAll('.lpill').forEach(b=>{
+      const L=b.dataset.lang;
+      b.classList.toggle('ready',  langReady(kind,L));
+      b.classList.toggle('loading',langBusy(kind,L));
+    });
+  });
+}
+
+async function setPatientLang(L){
+  if(!EXTRA) return;
+  $('langSel').value = L;
+  renderPatient(); setEdit(editMode);            // labels flip at once
+  if(langReady('pt',L)) return;                  // cached → nothing more to do
+  try{
+    await fetchLang('pt', L);
+  }catch(e){
+    toast('<b>Could not write the patient page in that language:</b> '+esc(e&&e.message||e),8000);
+  }
+  renderPatient(); setEdit(editMode); paintLangPills();
+}
+
+async function setDietLang(L){
+  if(!EXTRA) return;
+  dietLang = L;
+  renderDiet(); setEdit(editMode);
+  if(langReady('diet',L)) return;
+  try{
+    await fetchLang('diet', L);
+  }catch(e){
+    toast('<b>Could not write the diet sheet in that language:</b> '+esc(e&&e.message||e),8000);
+  }
+  renderDiet(); setEdit(editMode); paintLangPills();
+}
+
+/* ===== Diet page: its own language, independent of the patient page ===== */
+const COMO_L = {
+  mr:{cad:'हृदयाच्या रक्तवाहिन्यांचा आजार',post_pci:'स्टेंट बसवलेला',heart_failure:'हृदय कमजोर',diabetes:'मधुमेह',hypertension:'रक्तदाब',ckd:'मूत्रपिंडाचा जुना आजार',dyslipidemia:'कोलेस्टेरॉल वाढलेलं',obesity:'स्थूलता',anemia:'रक्त कमी',thyroid:'थायरॉईडचा त्रास',copd:'फुप्फुसाचा जुना आजार',stroke:'पूर्वी पक्षाघात',liver_disease:'यकृताचा आजार',gout:'यूरिक अ‍ॅसिड वाढलेलं',hyponatremia:'रक्तातलं मीठ कमी',elderly:'वृद्धापकाळाची काळजी',af:'हृदयाचे ठोके अनियमित',smoker:'धूम्रपान'},
+  hi:{cad:'हृदय की नसों का रोग',post_pci:'स्टेंट लगा हुआ',heart_failure:'हृदय कमज़ोर',diabetes:'मधुमेह',hypertension:'उच्च रक्तचाप',ckd:'गुर्दे का पुराना रोग',dyslipidemia:'कोलेस्ट्रॉल बढ़ा हुआ',obesity:'मोटापा',anemia:'खून की कमी',thyroid:'थायरॉइड की समस्या',copd:'फेफड़ों का पुराना रोग',stroke:'पहले लकवा',liver_disease:'यकृत का रोग',gout:'यूरिक एसिड बढ़ा हुआ',hyponatremia:'खून में नमक कम',elderly:'वृद्धावस्था की देखभाल',af:'धड़कन अनियमित',smoker:'धूम्रपान'},
+  kn:{cad:'ಹೃದಯದ ರಕ್ತನಾಳದ ಕಾಯಿಲೆ',post_pci:'ಸ್ಟೆಂಟ್ ಹಾಕಲಾಗಿದೆ',heart_failure:'ಹೃದಯ ದುರ್ಬಲ',diabetes:'ಮಧುಮೇಹ',hypertension:'ಅಧಿಕ ರಕ್ತದೊತ್ತಡ',ckd:'ಮೂತ್ರಪಿಂಡದ ದೀರ್ಘಕಾಲದ ಕಾಯಿಲೆ',dyslipidemia:'ಕೊಲೆಸ್ಟ್ರಾಲ್ ಹೆಚ್ಚು',obesity:'ಬೊಜ್ಜು',anemia:'ರಕ್ತಹೀನತೆ',thyroid:'ಥೈರಾಯ್ಡ್ ಸಮಸ್ಯೆ',copd:'ಶ್ವಾಸಕೋಶದ ದೀರ್ಘಕಾಲದ ಕಾಯಿಲೆ',stroke:'ಹಿಂದೆ ಪಾರ್ಶ್ವವಾಯು',liver_disease:'ಯಕೃತ್ತಿನ ಕಾಯಿಲೆ',gout:'ಯೂರಿಕ್ ಆಮ್ಲ ಹೆಚ್ಚು',hyponatremia:'ರಕ್ತದಲ್ಲಿ ಉಪ್ಪು ಕಡಿಮೆ',elderly:'ವೃದ್ಧಾಪ್ಯದ ಆರೈಕೆ',af:'ಅನಿಯಮಿತ ಹೃದಯ ಬಡಿತ',smoker:'ಧೂಮಪಾನ'}
+};
+function comoLabel(c, lang){
+  const t = COMO_L[lang]; 
+  return (t && t[c]) || COMO[c] || String(c).replace(/_/g,' ');
+}
+const DIET_UI = {
+  en:{title:'Diet & Lifestyle Prescription',pt:'Patient',age:'Age / Sex',date:'Date',cond:'Prescribed for these conditions',
+      salt:'Salt',fluid:'Fluid',cal:'Calories',prot:'Protein',pot:'Potassium',sugar:'Sugar',
+      avoid:'Avoid / strictly restrict',eat:'Eat freely — therapeutic foods',day:"A Day's Plan",
+      em:'Early morning',bf:'Breakfast',mm:'Mid-morning',ln:'Lunch',ev:'Evening',dn:'Dinner',
+      act:'Activity & Exercise',type:'Type',inten:'Intensity',dur:'Duration',prog:'How to progress',caut:'Cautions',
+      habits:'Daily habits',watch:'Keep a watch on',
+      foot:'This diet is prescribed for this patient only, based on the conditions listed above.',
+      foot2:'Show it to your doctor if any new illness is diagnosed.'},
+  mr:{title:'आहार व जीवनशैली सल्ला',pt:'रुग्ण',age:'वय / लिंग',date:'दिनांक',cond:'या आजारांसाठी दिलेला आहार',
+      salt:'मीठ',fluid:'द्रव पदार्थ',cal:'उष्मांक',prot:'प्रथिने',pot:'पोटॅशियम',sugar:'साखर',
+      avoid:'टाळा / कटाक्षाने कमी करा',eat:'मोकळेपणाने खा — उपयुक्त पदार्थ',day:'दिवसभराचा आहार',
+      em:'पहाटे',bf:'न्याहारी',mm:'सकाळी मध्ये',ln:'दुपारचे जेवण',ev:'संध्याकाळी',dn:'रात्रीचे जेवण',
+      act:'हालचाल व व्यायाम',type:'प्रकार',inten:'तीव्रता',dur:'कालावधी',prog:'कसे वाढवावे',caut:'काळजी',
+      habits:'रोजच्या सवयी',watch:'यावर लक्ष ठेवा',
+      foot:'हा आहार फक्त या रुग्णासाठी, वर दिलेल्या आजारांनुसार दिला आहे.',
+      foot2:'नवीन आजार निघाल्यास डॉक्टरांना हा कागद दाखवा.'},
+  hi:{title:'आहार एवं जीवनशैली परामर्श',pt:'रोगी',age:'आयु / लिंग',date:'दिनांक',cond:'इन रोगों के लिए दिया गया आहार',
+      salt:'नमक',fluid:'तरल पदार्थ',cal:'कैलोरी',prot:'प्रोटीन',pot:'पोटैशियम',sugar:'चीनी',
+      avoid:'इनसे बचें / सख़्ती से कम करें',eat:'खुलकर खाएँ — लाभकारी आहार',day:'दिन भर का आहार',
+      em:'सुबह जल्दी',bf:'नाश्ता',mm:'दोपहर से पहले',ln:'दोपहर का भोजन',ev:'शाम',dn:'रात का भोजन',
+      act:'गतिविधि एवं व्यायाम',type:'प्रकार',inten:'तीव्रता',dur:'अवधि',prog:'कैसे बढ़ाएँ',caut:'सावधानियाँ',
+      habits:'रोज़ की आदतें',watch:'इन पर नज़र रखें',
+      foot:'यह आहार केवल इसी रोगी के लिए, ऊपर लिखे रोगों के अनुसार दिया गया है।',
+      foot2:'कोई नया रोग हो तो यह पर्चा डॉक्टर को दिखाएँ।'},
+  kn:{title:'ಆಹಾರ ಮತ್ತು ಜೀವನಶೈಲಿ ಸಲಹೆ',pt:'ರೋಗಿ',age:'ವಯಸ್ಸು / ಲಿಂಗ',date:'ದಿನಾಂಕ',cond:'ಈ ಕಾಯಿಲೆಗಳಿಗಾಗಿ ನೀಡಿದ ಆಹಾರ',
+      salt:'ಉಪ್ಪು',fluid:'ದ್ರವ',cal:'ಕ್ಯಾಲೊರಿ',prot:'ಪ್ರೋಟೀನ್',pot:'ಪೊಟ್ಯಾಸಿಯಂ',sugar:'ಸಕ್ಕರೆ',
+      avoid:'ತಪ್ಪಿಸಿ / ಕಟ್ಟುನಿಟ್ಟಾಗಿ ಕಡಿಮೆ ಮಾಡಿ',eat:'ಮುಕ್ತವಾಗಿ ತಿನ್ನಿ — ಉಪಯುಕ್ತ ಆಹಾರ',day:'ದಿನದ ಆಹಾರ ಕ್ರಮ',
+      em:'ಬೆಳಗಿನ ಜಾವ',bf:'ಉಪಾಹಾರ',mm:'ಮಧ್ಯ ಬೆಳಗ್ಗೆ',ln:'ಮಧ್ಯಾಹ್ನದ ಊಟ',ev:'ಸಂಜೆ',dn:'ರಾತ್ರಿ ಊಟ',
+      act:'ಚಟುವಟಿಕೆ ಮತ್ತು ವ್ಯಾಯಾಮ',type:'ಪ್ರಕಾರ',inten:'ತೀವ್ರತೆ',dur:'ಅವಧಿ',prog:'ಹೇಗೆ ಹೆಚ್ಚಿಸಬೇಕು',caut:'ಎಚ್ಚರಿಕೆಗಳು',
+      habits:'ದಿನನಿತ್ಯದ ಅಭ್ಯಾಸಗಳು',watch:'ಇವುಗಳ ಮೇಲೆ ಗಮನವಿರಲಿ',
+      foot:'ಈ ಆಹಾರ ಈ ರೋಗಿಗೆ ಮಾತ್ರ, ಮೇಲೆ ಹೇಳಿದ ಕಾಯಿಲೆಗಳ ಆಧಾರದ ಮೇಲೆ ನೀಡಲಾಗಿದೆ.',
+      foot2:'ಹೊಸ ಕಾಯಿಲೆ ಕಂಡುಬಂದರೆ ಈ ಹಾಳೆಯನ್ನು ವೈದ್ಯರಿಗೆ ತೋರಿಸಿ.'}
+};
+
+let dietLang = null;   // null → follow the patient page
+let dietBusy = false;
+function curDietLang(){ return dietLang || $('langSel').value; }
+
+const SYS_DIET = "You are a clinical dietitian writing an Indian therapeutic diet sheet for a patient to take home. You translate and adapt faithfully, keep every quantity and restriction exactly as given, and write in simple everyday spoken language. Output STRICT JSON only.";
+function dietPrompt(diet, langCode){
+  const L = LANGS[langCode] || LANGS.mr;
+  return `
+Rewrite this therapeutic diet and lifestyle prescription in simple everyday spoken ${L.label} (${L.name}), using the ${L.label} script.
+
+${JSON.stringify(diet).slice(0, 18000)}
+
+RULES
+- Keep EVERY quantity, limit and restriction exactly as it is — grams of salt, litres of fluid, calories, minutes of walking, numbers of rotis. Do not round, drop or soften them.
+- Use the names Indian families actually use for foods in ${L.label} (e.g. bhakri, dudhi, methi, chana), not literal dictionary translations.
+- Keep the same number of items in each list, in the same order.
+- Write the way people speak at home, not textbook language.
+
+Return EXACTLY this JSON shape, every value in ${L.name}:
+{"headline":"","basis":"","avoid":[""],"eat":[""],
+ "meals":{"earlyMorning":[""],"breakfast":[""],"midMorning":[""],"lunch":[""],"evening":[""],"dinner":[""]},
+ "limits":{"salt":"","fluid":"","calories":"","protein":"","potassium":"","sugar":""},
+ "exercise":{"type":"","intensity":"","duration":"","progression":"","cautions":[""]},
+ "lifestyle":[""],"monitoring":[""]}
+`;
+}
+
 function renderDiet(){
-  const lang=$('langSel').value, L=LANGS[lang]||LANGS.mr;
-  const dt=(EXTRA&&EXTRA.diet)||{};
+  const lang = curDietLang(), L = LANGS[lang]||LANGS.mr;
+  const U  = DIET_UI[lang] || DIET_UI.en;
+  const dt = DIET_CACHE[lang] || (EXTRA&&EXTRA.diet) || {};
   const d=DATA, p=d.patient||{};
   const m=dt.meals||{}, lim=dt.limits||{}, ex=dt.exercise||{};
   const mealBox=(title,items)=>arr(items).length?`<div class="meal"><div class="h">${esc(title)}</div><div class="b"><ul>${arr(items).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div></div>`:'';
-  const limBox=(k,v,s)=>has(v)?`<div class="limit"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>${s?'<div class="s">'+esc(s)+'</div>':''}</div>`:'';
-  const como = arr(d.comorbidities).map(c=>COMO[c]||String(c).replace(/_/g,' ')).join('  ·  ');
+  const limBox=(k,v)=>has(v)?`<div class="limit"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`:'';
+  const como = arr(d.comorbidities).map(c=>comoLabel(c,lang)).join('  ·  ');
 
-  const pend = EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
-      ? '⚠️ This page could not be written. Switch the language and switch back to try again.'
-      : '⏳ Being written now — the discharge summary on the first tab is ready.')+'</div>' : '';
-  $('sheetDiet').innerHTML =
-    fmtHospital(d.hospital) + langBar(lang) + pend +
-    '<div class="doctitle">Diet &amp; Lifestyle Prescription</div>' +
+  const sheet=$('sheetDiet');
+  sheet.className = 'sheet ' + (lang==='en' ? '' : (lang==='kn' ? 'lang-kn' : 'lang-in'));
+
+  const waiting = langBusy('diet',lang) ? '<div class="pending">⏳ '+esc('Writing this sheet in '+(LANGS[lang]||LANGS.mr).label+'…')+'</div>'
+    : (EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
+        ? '⚠️ This page could not be written. Pick a language again to retry.'
+        : '⏳ Being written now — the discharge summary on the first tab is ready.')+'</div>' : '');
+
+  sheet.innerHTML =
+    fmtHospital(d.hospital) + langBar(lang,'diet') + waiting +
+    '<div class="doctitle">'+esc(U.title)+'</div>' +
     `<div class="ptgrid">
-      ${cell('Patient', p.name,'wide')}
-      ${cell('Age / Sex', [p.age,p.sex].filter(has).join(' / '))}
-      ${cell('Date', d.stay&&d.stay.discharge)}
-      ${como?'<div class="ptcell full"><div class="k">Prescribed for these conditions</div><div class="v">'+esc(como)+'</div></div>':''}
+      ${cell(U.pt, p.name,'wide')}
+      ${cell(U.age, [p.age,p.sex].filter(has).join(' / '))}
+      ${cell(U.date, d.stay&&d.stay.discharge)}
+      ${como?'<div class="ptcell full"><div class="k">'+esc(U.cond)+'</div><div class="v">'+esc(como)+'</div></div>':''}
     </div>` +
     (has(dt.headline)?`<div class="pp-hero" style="padding:11px 15px"><div class="t" style="font-size:12pt">${esc(dt.headline)}</div>${has(dt.basis)?'<div class="s">'+esc(dt.basis)+'</div>':''}</div>`:'') +
     `<div class="limits">
-      ${limBox('Salt', lim.salt)}${limBox('Fluid', lim.fluid)}${limBox('Calories', lim.calories)}
-      ${limBox('Protein', lim.protein)}${limBox('Potassium', lim.potassium)}${limBox('Sugar', lim.sugar)}
+      ${limBox(U.salt, lim.salt)}${limBox(U.fluid, lim.fluid)}${limBox(U.cal, lim.calories)}
+      ${limBox(U.prot, lim.protein)}${limBox(U.pot, lim.potassium)}${limBox(U.sugar, lim.sugar)}
     </div>` +
     `<div class="dietgrid">
-      <div class="dbox avoid"><h5>⛔ Avoid / strictly restrict</h5><ul>${arr(dt.avoid).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
-      <div class="dbox eat"><h5>✅ Eat freely — therapeutic foods</h5><ul>${arr(dt.eat).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+      <div class="dbox avoid"><h5>⛔ ${esc(U.avoid)}</h5><ul>${arr(dt.avoid).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+      <div class="dbox eat"><h5>✅ ${esc(U.eat)}</h5><ul>${arr(dt.eat).map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
     </div>` +
-    `<h3 class="sect teal">🍽 A Day's Plan</h3>
+    `<h3 class="sect teal">🍽 ${esc(U.day)}</h3>
      <div class="meals">
-       ${mealBox('Early morning', m.earlyMorning)}${mealBox('Breakfast', m.breakfast)}${mealBox('Mid-morning', m.midMorning)}
-       ${mealBox('Lunch', m.lunch)}${mealBox('Evening', m.evening)}${mealBox('Dinner', m.dinner)}
+       ${mealBox(U.em, m.earlyMorning)}${mealBox(U.bf, m.breakfast)}${mealBox(U.mm, m.midMorning)}
+       ${mealBox(U.ln, m.lunch)}${mealBox(U.ev, m.evening)}${mealBox(U.dn, m.dinner)}
      </div>` +
-    ((has(ex.type)||arr(ex.cautions).length)?`<h3 class="sect">🚶 Activity &amp; Exercise</h3>
+    ((has(ex.type)||arr(ex.cautions).length)?`<h3 class="sect">🚶 ${esc(U.act)}</h3>
      <table class="t"><tbody>
-       ${has(ex.type)?'<tr><td class="nm" style="width:24%">Type</td><td>'+esc(ex.type)+'</td></tr>':''}
-       ${has(ex.intensity)?'<tr><td class="nm">Intensity</td><td>'+esc(ex.intensity)+'</td></tr>':''}
-       ${has(ex.duration)?'<tr><td class="nm">Duration</td><td>'+esc(ex.duration)+'</td></tr>':''}
-       ${has(ex.progression)?'<tr><td class="nm">How to progress</td><td>'+esc(ex.progression)+'</td></tr>':''}
-       ${arr(ex.cautions).length?'<tr><td class="nm" style="color:var(--crit)">Cautions</td><td><ul style="margin-left:15px">'+arr(ex.cautions).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></td></tr>':''}
+       ${has(ex.type)?'<tr><td class="nm" style="width:26%">'+esc(U.type)+'</td><td>'+esc(ex.type)+'</td></tr>':''}
+       ${has(ex.intensity)?'<tr><td class="nm">'+esc(U.inten)+'</td><td>'+esc(ex.intensity)+'</td></tr>':''}
+       ${has(ex.duration)?'<tr><td class="nm">'+esc(U.dur)+'</td><td>'+esc(ex.duration)+'</td></tr>':''}
+       ${has(ex.progression)?'<tr><td class="nm">'+esc(U.prog)+'</td><td>'+esc(ex.progression)+'</td></tr>':''}
+       ${arr(ex.cautions).length?'<tr><td class="nm" style="color:var(--crit)">'+esc(U.caut)+'</td><td><ul style="margin-left:15px">'+arr(ex.cautions).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></td></tr>':''}
      </tbody></table>`:'') +
     ((arr(dt.lifestyle).length||arr(dt.monitoring).length)?`<div class="dietgrid">
-       ${arr(dt.lifestyle).length?'<div class="dbox" style="background:var(--teal-50);border:1px solid var(--teal-100)"><h5 style="color:var(--teal-800)">🏠 Daily habits</h5><ul>'+arr(dt.lifestyle).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
-       ${arr(dt.monitoring).length?'<div class="dbox" style="background:var(--slate-50);border:1px solid var(--slate-200)"><h5 style="color:var(--slate-700)">📊 Keep a watch on</h5><ul>'+arr(dt.monitoring).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
+       ${arr(dt.lifestyle).length?'<div class="dbox" style="background:var(--teal-50);border:1px solid var(--teal-100)"><h5 style="color:var(--teal-800)">🏠 '+esc(U.habits)+'</h5><ul>'+arr(dt.lifestyle).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
+       ${arr(dt.monitoring).length?'<div class="dbox" style="background:var(--slate-50);border:1px solid var(--slate-200)"><h5 style="color:var(--slate-700)">📊 '+esc(U.watch)+'</h5><ul>'+arr(dt.monitoring).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
      </div>`:'') +
-    ((arr(dt.localAvoid).length||arr(dt.localEat).length||arr(dt.localTips).length)?
-     `<h3 class="sect teal">${esc(L.name)} — ${esc((UI[lang]||UI.mr).fam)}</h3>
-      <div class="${lang==='kn'?'lang-kn':'lang-in'}" style="font-family:${lang==='kn'?'var(--font-kn)':'var(--font-in)'};font-size:10.5pt;line-height:1.8">
-        ${has(dt.localHeadline)?'<div style="font-weight:700;color:var(--teal-900);margin-bottom:8px">'+esc(dt.localHeadline)+'</div>':''}
-        <div class="dietgrid">
-          ${arr(dt.localAvoid).length?'<div class="dbox avoid"><h5 style="color:var(--crit)">⛔</h5><ul>'+arr(dt.localAvoid).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
-          ${arr(dt.localEat).length?'<div class="dbox eat"><h5 style="color:var(--ok)">✅</h5><ul>'+arr(dt.localEat).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
-        </div>
-        ${arr(dt.localTips).length?'<ul style="margin-left:18px;margin-top:8px">'+arr(dt.localTips).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':''}
-      </div>`:'') +
-    signatureLite() + credit();
-  wireLangBar($('sheetDiet'));
+    signatureLite(U) + credit();
+  wireLangBar(sheet); paintLangPills();
 }
-function signatureLite(){
+
+function signatureLite(U){
+  U = U || DIET_UI.en;
   const n=$('signDoc').value.trim()||(DATA.patient&&DATA.patient.consultant)||'';
   const q=$('signQual').value.trim()||'';
-  return `<div class="sig"><div class="l"><b>This diet is prescribed for this patient only</b>, based on the conditions listed above.<br>Show it to your doctor if any new illness is diagnosed.</div>
+  return `<div class="sig"><div class="l">${esc(U.foot)}<br>${esc(U.foot2)}</div>
    <div class="r"><div class="nm2">${esc(n||'Consultant')}</div><div class="q">${esc(q)}</div></div></div>`;
 }
 
@@ -1869,6 +2093,29 @@ const PAGES = [
 ];
 const PAGE_BY_KIND = k => PAGES.find(p=>p.kind===k);
 
+/* Tick-box chooser: returns the sheet ids the user ticked */
+function pickTicks(title, sub, goLabel, cb){
+  $('tkTitle').textContent = title;
+  $('tkSub').textContent   = sub;
+  $('tkGo').innerHTML      = goLabel;
+  $('tkWarn').style.display='none';
+  document.querySelectorAll('.tkbox').forEach(b=>{ b.checked = true; });
+  $('pickTickModal').classList.add('on');
+  $('tkCancel').onclick = ()=>$('pickTickModal').classList.remove('on');
+  $('tkGo').onclick = ()=>{
+    const ids = Array.from(document.querySelectorAll('.tkbox')).filter(b=>b.checked).map(b=>b.value);
+    if(!ids.length){ $('tkWarn').style.display='block'; return; }
+    $('pickTickModal').classList.remove('on');
+    cb(ids);
+  };
+}
+const SHEET_KIND = {sheetDoc:'Discharge_Summary', sheetPt:'Patient_Explanation', sheetDiet:'Diet_Prescription'};
+function kindFor(ids){
+  if(ids.length===3) return 'Full_Discharge_Pack';
+  if(ids.length===1) return SHEET_KIND[ids[0]]||'Summary';
+  return ids.map(i=>(SHEET_KIND[i]||'').split('_')[0]).join('_');
+}
+
 function pickPage(title, sub, cb){
   $('pickTitle').textContent=title; $('pickSub').textContent=sub;
   const body=$('pickBody'); body.innerHTML='';
@@ -1988,9 +2235,11 @@ async function generate(){
     try{
       const raw2 = await gemini([{text: patientPrompt(DATA, lang)}], SYS_PATIENT, 32000);
       const nx = parseJSON(raw2); nx._lang = lang; EXTRA = nx;
-      renderPatient(); renderDiet(); setEdit(editMode);
+      clearLangCaches(); seedCaches();
+      renderPatient(); renderDiet(); setEdit(editMode); paintLangPills();
       status('',false);
-      toast('<b>✅ Patient page and diet sheet ready.</b>',4500);
+      toast('<b>✅ Patient page and diet sheet ready.</b>'+(prefetchOn?' The other languages are being prepared in the background.':''),5000);
+      if(prefetchOn) prefetchLanguages().then(paintLangPills);
     }catch(e2){
       console.warn('patient pass failed', e2);
       EXTRA={patient:{},diet:{},_lang:lang,_failed:true};
@@ -2011,7 +2260,9 @@ async function generate(){
 window.DSAI_LOAD = function(data, extra){
   DATA = data||{}; DATA.patient=DATA.patient||{}; DATA.stay=DATA.stay||{}; DATA.hospital=DATA.hospital||{};
   EXTRA = extra||{patient:{},diet:{}};
-  renderDoc(); renderPatient(); renderDiet(); setEdit(true);
+  if(!EXTRA._lang) EXTRA._lang = $('langSel').value;   // the pack we were handed is in this language
+  clearLangCaches(); seedCaches();
+  renderDoc(); renderPatient(); renderDiet(); setEdit(true); paintLangPills();
   document.getElementById('output').style.display='block';
   document.getElementById('actionBar').classList.add('on');
   return true;
@@ -2072,57 +2323,58 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
 
   // Switching language rewrites the patient + diet pages in that language
-  $('langSel').onchange = async ()=>{
-    if(!DATA || !EXTRA) return;
-    const L = $('langSel').value;
-    if(EXTRA._lang === L){ renderPatient(); renderDiet(); setEdit(editMode); return; }
-    renderPatient(); renderDiet(); setEdit(editMode);   // headings flip immediately
-    try{
-      status('Rewriting the patient page and diet sheet in '+(LANGS[L]||LANGS.mr).label+'…');
-      const raw = await gemini([{text: patientPrompt(DATA, L)}], SYS_PATIENT, 32000);
-      const nx = parseJSON(raw); nx._lang = L; EXTRA = nx;
-      status('',false);
-      toast('<b>✅ Rewritten in '+(LANGS[L]||LANGS.mr).label+'.</b> Any edits you had made on those two pages were replaced.',7000);
-    }catch(e){
-      status('',false);
-      toast('<b>Could not rewrite in that language:</b> '+esc(e.message)+'<br>Showing the previous version.',9000);
-    }
-    renderPatient(); renderDiet(); setEdit(editMode);
-  };
+  $('langSel').onchange = ()=>{ if(EXTRA) setPatientLang($('langSel').value); };
   ['signDoc','signQual'].forEach(id=>$(id).addEventListener('input',()=>{ if(DATA){ renderDoc(); renderDiet(); setEdit(editMode); } }));
   $('signDoc').value  = store.get('dsai_doc')  || 'Dr Gurunath Parale';
   $('signQual').value = store.get('dsai_qual') || 'MD, DM, FACC, FCSI, FICP — Interventional Cardiologist';
   $('signDoc').addEventListener('change',e=>store.set('dsai_doc',e.target.value));
   $('signQual').addEventListener('change',e=>store.set('dsai_qual',e.target.value));
   $('apiKey').value = store.get('dsai_key')||'';
+  $('prefetchChk').checked = store.get('dsai_prefetch') !== '0';
+  prefetchOn = $('prefetchChk').checked;
+  $('prefetchChk').addEventListener('change', e=>{
+    prefetchOn = e.target.checked;
+    store.set('dsai_prefetch', prefetchOn ? '1' : '0');
+    if(prefetchOn && EXTRA) prefetchLanguages().then(paintLangPills);
+  });
 
   $('editBtn').onclick = ()=>setEdit(!editMode);
 
-  $('printBtn').onclick = ()=>{
-    document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('skip-print'));
-    setEdit(false);
-    setTimeout(()=>window.print(), 120);
-  };
+  $('printBtn').onclick = ()=> pickTicks(
+    '🖨️ What do you want to print?',
+    'Tick the pages you need. Everything is ticked by default.',
+    '🖨️ Print selected',
+    ids=>{
+      document.querySelectorAll('.sheet').forEach(sh=>sh.classList.toggle('skip-print', ids.indexOf(sh.id)<0));
+      const wasEditing = editMode;
+      setEdit(false);
+      const restore = ()=>{
+        document.querySelectorAll('.sheet').forEach(sh=>sh.classList.remove('skip-print'));
+        if(wasEditing) setEdit(true);
+        window.removeEventListener('afterprint', restore);
+      };
+      window.addEventListener('afterprint', restore);
+      setTimeout(()=>{ window.print(); setTimeout(restore, 1500); }, 150);
+    });
 
-  $('pdfBtn').onclick = ()=> pickPage('Download as PDF','Which page do you want to save?', async page=>{
+  $('pdfBtn').onclick = ()=> pickTicks('⬇️ Which pages in the PDF?','Tick the pages to include. They go into one PDF, in this order.','⬇️ Build PDF', async ids=>{
     try{
       status('Building PDF…');
-      const b=await buildBlob(page);
+      const b=await renderPdfBlob(ids,(i,n)=>status('Building PDF — page '+i+' of '+n+'…'));
       const u=URL.createObjectURL(b), a=document.createElement('a');
-      a.href=u; a.download=pdfName(page.kind); document.body.appendChild(a); a.click(); a.remove();
+      a.href=u; a.download=pdfName(kindFor(ids)); document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(u),5000);
       status('',false);
       toast('<b>✅ PDF saved</b> to your Downloads folder.',5000);
     }catch(e){ status('',false); console.error(e);
       showErr('<b>⚠️ The PDF could not be built on this device.</b><br>'+esc(e&&e.message||e)+
-              '<br>Use <b>🖨️ Print all 3 pages</b> and choose <b>Save as PDF</b> — that uses the browser\'s own engine and always works.');
+              '<br>Use <b>🖨️ Print…</b> and choose <b>Save as PDF</b> — that uses the browser\'s own engine and always works.');
       toast('<b>PDF failed.</b> Use Print → Save as PDF instead.',9000); }
   });
 
-  $('docBtn').onclick = ()=> pickPage('Download as editable Word','Opens in Word / Google Docs / WPS — fully editable, keeps the colours.', page=>{
+  $('docBtn').onclick = ()=> pickTicks('📝 Which pages in the Word file?','Opens in Word / Google Docs / WPS — fully editable, keeps the colours.','📝 Build Word file', ids=>{
     const n=(DATA&&DATA.patient&&DATA.patient.name||'Patient').replace(/[^A-Za-z0-9 ]/g,'').trim().replace(/\s+/g,'_')||'Patient';
-    if(page.id==='ALL') downloadWord(PAGES.map(p=>p.id), n+'_Discharge_Pack.doc', 'Discharge Summary');
-    else downloadWord([page.id], n+'_'+page.kind+'.doc', page.label);
+    downloadWord(ids, n+'_'+kindFor(ids)+'.doc', 'Discharge Summary');
     toast('<b>📝 Word file saved.</b> Open it in Word or Google Docs and edit freely.',6000);
   });
 
@@ -2217,7 +2469,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     $('ptWa').value='';
     const wn=$('waNum'); if(wn) wn.value='';
     $('pickModal').classList.remove('on');
+    $('pickTickModal').classList.remove('on');
     $('waModal').classList.remove('on');
+    dietLang=null; dietBusy=false; prefetchOn=false; clearLangCaches(); prefetchOn=true;
     clearErr(); status('',false);
     $('goBtn').disabled=true;
     $('goBtn').textContent='✨ Generate Discharge Summary';
@@ -2228,7 +2482,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('resetBtn').onclick = ()=>clearAll(true);
   $('clearBtn').onclick = ()=>clearAll(true);
 
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('pickModal').classList.remove('on'); $('waModal').classList.remove('on'); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('pickModal').classList.remove('on'); $('pickTickModal').classList.remove('on'); $('waModal').classList.remove('on'); } });
 });
 })();
 </script>
