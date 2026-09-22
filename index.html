@@ -2074,10 +2074,21 @@ async function renderPdfBlob(ids,onProg){
     const ip=String((DATA&&DATA.patient&&DATA.patient.ipdNo)||'');
     const n=pdf.internal.getNumberOfPages();
     for(let i=1;i<=n;i++){
-      pdf.setPage(i); pdf.setFontSize(7); pdf.setTextColor(125,135,150);
-      if(nm) pdf.text(nm+(ip?'  -  IPD '+ip:''),PG_MG,292);
-      pdf.text('Page '+i+' of '+n,210-PG_MG,292,{align:'right'});
+      pdf.setPage(i);
+      pdf.setFontSize(7); pdf.setTextColor(125,135,150);
+      if(nm) pdf.text(nm+(ip?'  -  IPD '+ip:''),PG_MG,291);
+      pdf.text('Page '+i+' of '+n,210-PG_MG,291,{align:'right'});
+      // quiet line of authorship on every page, set well down in the margin
+      pdf.setFontSize(5.8); pdf.setTextColor(176,184,193);
+      pdf.text('Discharge Summary AI  -  developed by Dr Gurunath Parale',105,294.6,{align:'center'});
     }
+    try{ pdf.setProperties({
+      title:  'Discharge Summary' + (nm?' - '+nm:''),
+      subject:'Hospital discharge summary',
+      author: 'Dr Gurunath Parale',
+      creator:'Discharge Summary AI - developed by Dr Gurunath Parale',
+      keywords:'discharge summary, Discharge Summary AI, Dr Gurunath Parale'
+    }); }catch(e){}
     return pdf.output('blob');
   } finally {
     try{document.body.removeChild(stage);}catch(e){}
