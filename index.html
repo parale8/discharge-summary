@@ -68,6 +68,13 @@ a{color:var(--teal-700)}
 .btn-lg{padding:14px 26px;font-size:1rem}
 /* visually hidden, but still clickable programmatically on mobile */
 .filein{position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.keystate{font-size:.8rem;font-weight:700;color:var(--teal-800);margin-top:6px;min-height:17px}
+.keyreport{margin-top:8px;font-size:.78rem;line-height:1.7}
+.keyreport .kr{display:flex;gap:8px;align-items:baseline;padding:4px 9px;border-radius:7px;margin-bottom:4px;border:1px solid var(--slate-200);background:#fff}
+.keyreport .kr b{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600;color:var(--slate-700)}
+.keyreport .kr.ok{background:var(--ok-bg);border-color:var(--ok-br);color:var(--ok)}
+.keyreport .kr.warn{background:var(--warn-bg);border-color:var(--warn-br);color:var(--warn)}
+.keyreport .kr.bad{background:var(--crit-bg);border-color:var(--crit-br);color:var(--crit)}
 .caplog{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;line-height:1.55;color:var(--slate-700);background:var(--slate-50);border:1px solid var(--slate-200);border-radius:8px;padding:8px 10px;margin-top:6px;max-height:190px;overflow:auto;word-break:break-word}
 .thumb .noprev{width:100%;height:100%;display:grid;place-items:center;align-content:center;gap:2px;font-size:24px;color:var(--teal-700);background:var(--teal-50)}
 .thumb .noprev span{font-size:.6rem;font-weight:700;color:var(--slate-600)}
@@ -107,7 +114,8 @@ details.cfg summary{cursor:pointer;font-size:.85rem;color:var(--slate-600);font-
 .dochead .hname{font-size:14pt;font-weight:800;color:var(--teal-900);letter-spacing:-.2px;line-height:1.15}
 .dochead .haddr{font-size:8pt;color:var(--slate-600);margin-top:2px;line-height:1.35}
 .dochead .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
-.doctitle{background:var(--teal-700);color:#fff;text-align:center;font-weight:800;letter-spacing:2.2px;font-size:10.5pt;padding:4px;margin:0 0 8px;text-transform:uppercase}
+.doctitle{background:var(--teal-700);color:#fff;text-align:center;font-weight:800;letter-spacing:2.2px;font-size:10.5pt;padding:4px;margin:0 0 2px;text-transform:uppercase}
+.docby{text-align:center;font-size:6.8pt;letter-spacing:.9px;text-transform:uppercase;color:var(--slate-400);margin:0 0 8px}
 
 .ptgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--slate-200);border-radius:7px;overflow:hidden;margin-bottom:12px}
 .ptcell{padding:4px 9px;border-right:1px solid var(--slate-200);border-bottom:1px solid var(--slate-200);background:#fff}
@@ -269,6 +277,7 @@ table.rx td:first-child{white-space:nowrap;text-align:center}
 .credit{margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:7.6pt;color:var(--slate-400);border-top:1px dashed var(--slate-200);padding-top:7px}
 .credit img{height:17px;width:auto;opacity:.85;border-radius:3px}
 
+.localnote{background:#fdf7e8;border:1px solid #e6d3a3;color:#7a5c18;border-radius:7px;padding:6px 11px;font-size:8pt;margin:8px 0 2px;text-align:center}
 .pending{background:var(--teal-50);border:1px dashed var(--teal-700);color:var(--teal-800);border-radius:9px;padding:10px 14px;font-size:9.6pt;font-weight:700;margin:10px 0 4px;text-align:center}
 @media print{.pending{display:none}}
 
@@ -581,6 +590,9 @@ html.pdf-rendering table.labmx td.nm .ref{white-space:normal}
         <div class="field" style="grid-column:1/-1">
           <label>Your own Google Gemini API key(s)</label>
           <textarea id="apiKey" rows="3" placeholder="Leave blank to use the built-in key&#10;Paste one key per line to use several"></textarea>
+          <div id="keyState" class="keystate"></div>
+          <button class="btn btn-soft" id="keyTestBtn" style="margin-top:8px">🔎 Check my keys</button>
+          <div id="keyReport" class="keyreport"></div>
           <p class="muted" style="margin-top:6px"><b>There is no daily limit in this app</b> — the only cap is Google's, per key. Paste <b>several keys, one per line</b> and they are used in turn; when one is exhausted the next takes over automatically. Free keys from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>; a billing-enabled key has no daily cap. Stored only in this browser.</p>
         </div>
       </div>
@@ -881,51 +893,119 @@ function b64(file){
 }
 
 /* ============================================================
-   3.  GEMINI CALL
+   3.  GEMINI CALL — queued, spaced and retried.
+
+   Google's free tier limits requests PER MINUTE as well as per day. A burst
+   (extraction + patient page + background languages) used to trip that in a
+   few seconds; the old code then marked every key dead for the whole session
+   and quietly handed back empty pages. Now calls are serialised with a gap,
+   a 429 is waited out and retried on the SAME key, and a key is only written
+   off when Google says the DAILY quota is gone.
    ============================================================ */
-const SPENT_KEYS = new Set();   // keys that hit their daily quota in this session
-async function gemini(parts, sysText, maxTok){
-  const raw = $('apiKey').value.trim() || store.get('dsai_key') || '';
+const SPENT_KEYS = new Set();        // only keys whose *daily* quota is gone
+const BACKOFF    = [2500, 6000, 14000, 28000];
+const MIN_GAP    = 1100;             // ms between any two calls
+let   _chain     = Promise.resolve();
+let   _lastCall  = 0;
+let   _userBusy  = 0;                // background work waits while the doctor waits
+
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+function queued(fn, bg){
+  const run = async ()=>{
+    if(bg){ let guard=0; while(_userBusy>0 && guard++<120) await sleep(500); }
+    const wait = MIN_GAP - (Date.now() - _lastCall);
+    if(wait>0) await sleep(wait);
+    _lastCall = Date.now();
+    return fn();
+  };
+  const p = _chain.then(run, run);
+  _chain = p.then(()=>{}, ()=>{});
+  return p;
+}
+
+function keyList(){
+  const raw = ($('apiKey').value || '').trim() || store.get('dsai_key') || '';
   if(raw) store.set('dsai_key', raw);
-  // several keys may be pasted, one per line or comma separated — they are
-  // tried in turn, so the day's work is never capped by a single key's quota
-  const userKeys = raw.split(/[\s,;]+/).map(k=>k.trim()).filter(k=>k.length>20);
-  let pool = userKeys.length ? [...userKeys, ...KEY_POOL] : [...KEY_POOL];
+  const mine = raw.split(/[\s,;]+/).map(k=>k.trim()).filter(k=>k.length>20);
+  let pool = mine.length ? [...mine, ...KEY_POOL] : [...KEY_POOL];
   const live = pool.filter(k=>!SPENT_KEYS.has(k));
-  if(live.length) pool = live;                       // skip keys already spent today
-  let lastErr='', rateLimited=false, badKey=false;
+  return { pool: live.length ? live : pool, hasOwn: mine.length>0 };
+}
+function hasOwnKey(){ return keyList().hasOwn; }
+
+async function gemini(parts, sysText, maxTok, bg){
+  if(!bg) _userBusy++;
+  try{
+    return await queued(()=>geminiOnce(parts, sysText, maxTok, bg), bg);
+  } finally { if(!bg) _userBusy--; }
+}
+
+async function geminiOnce(parts, sysText, maxTok, bg){
+  const { pool } = keyList();
+  let lastErr='', rateLimited=false, badKey=false, dailyGone=false;
 
   for(const rawK of pool){
     const key = dec(rawK);
     for(const model of MODELS){
-      try{
-        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(key),{
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            system_instruction:{parts:[{text:sysText}]},
-            contents:[{parts:parts}],
-            generationConfig:{ temperature:0.15, topP:0.9, maxOutputTokens:maxTok||32768, responseMimeType:'application/json' }
-          })
-        });
-        if(r.ok){
-          const j = await r.json();
-          const txt = (((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text || '';
-          if(!txt) throw new Error('Empty AI response — please retake a clearer photo.');
-          return txt;
+      for(let attempt=0; attempt<=BACKOFF.length; attempt++){
+        try{
+          const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(key),{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              system_instruction:{parts:[{text:sysText}]},
+              contents:[{parts:parts}],
+              generationConfig:{ temperature:0.15, topP:0.9, maxOutputTokens:maxTok||32768, responseMimeType:'application/json' }
+            })
+          });
+          if(r.ok){
+            const j = await r.json();
+            const txt = (((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text || '';
+            if(!txt) throw new Error('Empty AI response — please retake a clearer photo.');
+            return txt;
+          }
+          const e  = await r.json().catch(()=>({}));
+          lastErr  = (e.error&&e.error.message) || ('HTTP '+r.status);
+          const le = lastErr.toLowerCase();
+
+          if(r.status===429 || le.includes('quota') || le.includes('rate limit') || le.includes('resource_exhausted')){
+            rateLimited = true;
+            const daily = /per\s*day|daily|requests per day|perday/i.test(lastErr);
+            if(!daily && attempt < BACKOFF.length){
+              // a per-minute cap — it clears on its own, so wait and try again
+              const w = BACKOFF[attempt];
+              if(!bg) status('Google is rate-limiting — waiting '+Math.round(w/1000)+'s and trying again…');
+              await sleep(w);
+              _lastCall = Date.now();
+              continue;
+            }
+            if(daily){ dailyGone = true; SPENT_KEYS.add(rawK); }
+            break;
+          }
+          if(r.status===401 || r.status===403 || le.includes('api key') || le.includes('unauthenticated')){ badKey=true; break; }
+          if(r.status===404 || le.includes('not found')) break;   // try the next model
+          break;
+        }catch(err){
+          lastErr = err.message || 'Network error';
+          if(attempt < 1){ await sleep(900); continue; }
+          break;
         }
-        const e = await r.json().catch(()=>({}));
-        lastErr = (e.error&&e.error.message) || ('HTTP '+r.status);
-        const le = lastErr.toLowerCase();
-        if(r.status===429 || le.includes('quota') || le.includes('rate limit') || le.includes('resource_exhausted')){
-          rateLimited=true; SPENT_KEYS.add(rawK); break; }
-        if(r.status===401 || r.status===403 || le.includes('api key') || le.includes('unauthenticated')){ badKey=true; break; }
-        if(r.status===404 || le.includes('not found')) continue;
-      }catch(err){ lastErr = err.message || 'Network error'; }
-      await new Promise(r=>setTimeout(r,120));
+      }
+      if(badKey || dailyGone) break;
+      await sleep(150);
     }
+    if(badKey) break;
   }
-  if(badKey)      throw new Error('The API key was rejected. Open <b>AI settings</b> above and paste a valid Gemini key.');
-  if(rateLimited) throw new Error('Every key available has hit its daily quota. There is no limit in this app — the limit is on the Google key.<br>Open <b>AI settings</b> above and paste one or more of your own keys from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> (free to create, one per line — they are used in turn). A billing-enabled key removes the daily cap entirely.');
+  if(!bg) status('',false);
+  if(badKey) throw new Error('The API key was rejected. Open <b>AI settings</b> above and paste a valid Gemini key.');
+  if(rateLimited) throw new Error(
+      (dailyGone
+        ? 'Google says the <b>daily</b> quota on this key is finished. '
+        : 'Google is still rate-limiting after several retries. ')
+      + 'This app sets no limit of its own — the cap belongs to the Google key.<br>'
+      + 'Open <b>AI settings</b> and paste <b>one or more of your own keys, one per line</b> '
+      + '(<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">free from Google AI Studio</a>); they are used in turn. '
+      + 'A billing-enabled key removes the cap altogether.');
   throw new Error('Could not reach the AI service: '+esc(lastErr));
 }
 
@@ -1486,7 +1566,7 @@ function renderDoc(){
   const invBody = labTable(inv.lab) + cardList(inv.imaging,'B. Imaging Investigations','🖼') + cardList(inv.special,'C. Special Investigations &amp; Cardiac Procedures','📈');
   $('sheetDoc').innerHTML =
     fmtHospital(d.hospital) +
-    '<div class="doctitle">Discharge Summary</div>' +
+    '<div class="doctitle">Discharge Summary</div><div class="docby">Developed by Dr Gurunath Parale</div>' +
     `<div class="ptgrid tight">
       ${cell('Patient name', p.name, 'wide')}
       ${cell('Age / Sex', [p.age,p.sex].filter(has).join(' / '))}
@@ -1550,7 +1630,9 @@ function renderPatient(targetEl, forceLang){
   const findings = arr(loc.testFindings).length?arr(loc.testFindings):arr(en.testFindings);
   const meds = arr(loc.keyMedicines).length?arr(loc.keyMedicines):arr(en.keyMedicines);
 
-  const pend = targetEl ? '' : langBusy('pt',lang) ? '<div class="pending">⏳ '+esc('Writing this page in '+(LANGS[lang]||LANGS.mr).label+'…')+'</div>'
+  const localNote = (EXTRA && EXTRA._local && /patient/.test(EXTRA._local))
+    ? '<div class="localnote">Written from the discharge record, not by the AI — tap a language above to have it rewritten.</div>' : '';
+  const pend = targetEl ? localNote : langBusy('pt',lang) ? '<div class="pending">⏳ '+esc('Writing this page in '+(LANGS[lang]||LANGS.mr).label+'…')+'</div>'
     : EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
       ? '⚠️ This page could not be written. Switch the language and switch back to try again.'
       : '⏳ Being written in '+(LANGS[lang]||LANGS.mr).label+' — the discharge summary on the first tab is ready now.')+'</div>' : '';
@@ -1596,6 +1678,8 @@ function renderPatient(targetEl, forceLang){
     (has(loc.followUp)?`<div class="pp-sec"><div class="h">📅 ${esc(U.s7)}</div><div class="b">${esc(loc.followUp)}</div></div>`:'') +
     (has(loc.closing)?`<div style="text-align:center;font-size:10.5pt;font-style:italic;color:var(--teal-800);margin-top:12px;padding:10px;background:var(--teal-50);border-radius:8px">${esc(loc.closing)}</div>`:'') +
     credit();
+  // a page with nothing written in it must never reach the printer
+  sheet.dataset.empty = (has(loc.whatHappened) || findings.length || arr(loc.warningSigns).length) ? '0' : '1';
   if(!targetEl){ wireLangBar(sheet); paintLangPills(); }
 }
 
@@ -1603,6 +1687,114 @@ function renderPatient(targetEl, forceLang){
    7.  RENDER — DIET PAGE
    ============================================================ */
 const COMO={cad:'Coronary artery disease',post_pci:'Post-PCI / stented',heart_failure:'Heart failure',diabetes:'Type 2 diabetes',hypertension:'Hypertension',ckd:'Chronic kidney disease',dyslipidemia:'Dyslipidaemia',obesity:'Obesity',anemia:'Anaemia',thyroid:'Thyroid disorder',copd:'COPD',stroke:'Previous stroke',liver_disease:'Liver disease',gout:'Gout / hyperuricaemia',hyponatremia:'Hyponatraemia',elderly:'Elderly (frailty care)',af:'Atrial fibrillation',smoker:'Smoker',none:'No chronic illness recorded — general healthy diet'};
+
+/* ============================================================
+   Shape repair + local fallbacks.
+   The model occasionally answers with the patient pack flattened, or a call
+   fails outright. Neither may ever reach the printer as a blank sheet, so the
+   pack is normalised, checked, retried once, and finally built from the
+   clinical record itself if the AI still gives nothing.
+   ============================================================ */
+function normalisePack(o, lang){
+  o = o || {};
+  let pt = o.patient || {};
+  if(!pt.en && !pt.loc){
+    if(has(pt.whatHappened) || has(pt.title))      pt = {en:pt, loc:pt};
+    else if(o.en || o.loc)                          pt = {en:o.en||o.loc||{}, loc:o.loc||o.en||{}};
+    else                                            pt = {};
+  }
+  if(pt.en && !pt.loc) pt.loc = pt.en;
+  if(pt.loc && !pt.en) pt.en = pt.loc;
+  const diet = o.diet || (o.meals||o.avoid ? o : {});
+  return { patient: pt, diet: diet, _lang: lang };
+}
+function patientOk(p){
+  const e = (p && p.patient && (p.patient.en||p.patient.loc)) || {};
+  return has(e.whatHappened) || arr(e.testFindings).length || arr(e.warningSigns).length;
+}
+function dietOk(p){
+  const d = (p && p.diet) || {};
+  return arr(d.avoid).length || arr(d.eat).length ||
+         Object.keys(d.meals||{}).some(k=>arr(d.meals[k]).length);
+}
+
+/* written straight from the record — no AI, never blank */
+function fallbackPatient(d){
+  const dx   = arr(d.diagnoses).map(x=>x.short||x.full).filter(has);
+  const proc = arr(d.procedures).map(x=>x.name).filter(has);
+  const meds = arr(d.prescription).filter(m=>has(m.brand)||has(m.generic));
+  const f    = d.followUp||{}, em = d.emergency||{};
+  return {
+    title:'Your hospital stay — what happened and what to do now',
+    subtitle:'Please keep this sheet with your medicines',
+    whatHappened: dx.length
+      ? 'You were treated in hospital for '+dx.slice(0,4).join(', ')+'.'
+      : 'You were admitted to hospital and have now been treated and discharged.',
+    whatWasDone: proc.length ? 'The following was done during your stay: '+proc.join('; ')+'.' : '',
+    severity:'moderate', severityWord:'Needs careful follow-up',
+    severityExplain:'Take every medicine exactly as written and come for the check-up on time. Ask your doctor to explain anything on this sheet you are unsure about.',
+    testFindings:[],
+    medicineWhy:'Each medicine below has a job to do. Stopping any of them without asking the doctor can undo the treatment you have just had.',
+    keyMedicines: meds.slice(0,10).map(m=>({name:[m.form?m.form+'.':'',m.brand||m.generic,m.strength].filter(Boolean).join(' '), why:m.purpose||''})),
+    neverStop:'Do not stop, change or add any medicine without the treating doctor’s advice.',
+    dos: arr(f.instructions).concat(arr(d.advice)).slice(0,6),
+    donts:[],
+    warningSigns: arr(em.when).length ? arr(em.when) : arr(f.warningSigns),
+    followUp: [f.date||f.intervalText||'', arr(f.testsToRepeat).length?'Bring: '+arr(f.testsToRepeat).join(', '):''].filter(Boolean).join(' — '),
+    closing:''
+  };
+}
+function fallbackDiet(d){
+  const c = arr(d.comorbidities);
+  const hasC = t => c.indexOf(t)>=0;
+  const avoid = ['Added salt at the table, papad, pickle, farsan, wafers and salted snacks',
+                 'Packaged and preserved foods, sauces, ready soups, instant noodles',
+                 'Deep-fried food — samosa, vada, bhaji, puri',
+                 'Ghee, butter, dalda, coconut oil, cream and full-fat cheese',
+                 'Bakery items — khari, toast, cream rolls, pastry',
+                 'Tobacco in every form, and alcohol'];
+  const eat = ['Fresh home-cooked food, cooked without adding salt at the end',
+               'Jowar, bajra and whole-wheat bhakri or roti',
+               'Moong, masoor and toor dal — one katori, well cooked',
+               'Plenty of seasonal vegetables — dudhi, tinda, cabbage, carrot, beans',
+               'One small serving of fruit a day — papaya, guava, apple or pear',
+               'Mustard, rice-bran or groundnut oil — about 3 teaspoons a day'];
+  if(hasC('diabetes')){ avoid.push('Sugar, jaggery, sweets, soft drinks and packaged fruit juice'); eat.push('Carbohydrate spread evenly across 5 small meals'); }
+  if(hasC('dyslipidemia')||hasC('cad')||hasC('post_pci')){ avoid.push('Red meat, organ meat and egg yolk more than 3 times a week'); eat.push('Oats, flaxseed, walnuts and almonds — 4 to 5 a day'); }
+  if(hasC('ckd')) avoid.push('Salt substitutes, coconut water and excess banana (potassium)');
+  if(hasC('gout')) avoid.push('Organ meats, seafood and beer');
+  const lim = {
+    salt: (hasC('hypertension')||hasC('heart_failure')) ? 'Less than 3 g a day — about half a teaspoon for the whole day’s cooking' : 'Less than 5 g a day',
+    fluid: hasC('heart_failure') ? '1.5 litres in 24 hours, counting tea, milk and soup' : 'Normal — 2 to 2.5 litres a day unless the doctor says otherwise',
+    calories:'A normal portion size; avoid second helpings',
+    protein:'One katori of dal and one cup of curd a day',
+    potassium: hasC('ckd') ? 'Avoid coconut water, excess banana and all salt substitutes' : 'Normal',
+    sugar: hasC('diabetes') ? 'No added sugar at all' : 'Keep sweets occasional'
+  };
+  return {
+    headline:'Home diet and lifestyle advice',
+    basis: c.length ? 'Based on: '+c.map(x=>COMO[x]||x).join(' · ') : 'General heart-healthy Indian diet',
+    avoid, eat,
+    meals:{ earlyMorning:['A small cup of tea without sugar','4 to 5 soaked almonds'],
+            breakfast:['Vegetable oats, or 2 moong dal chilla, or 2 jowar bhakri with vegetable'],
+            midMorning:['One small fruit, or half a cup of unsalted buttermilk'],
+            lunch:['2 bhakri or phulka','1 katori dal','1 katori seasonal vegetable','Salad without salt'],
+            evening:['A small cup of tea without sugar','Roasted chana or one unsalted khakhra'],
+            dinner:['Finish by 7:30 pm','2 phulka or 1 katori khichdi','1 katori cooked vegetable'] },
+    limits: lim,
+    exercise:{ type: (hasC('cad')||hasC('post_pci')||hasC('heart_failure')) ? 'Slow walking on flat ground only' : 'Brisk walking',
+               intensity:'Light — you should be able to talk comfortably while walking',
+               duration:'Start with 10 minutes twice a day',
+               progression:'Increase by 2 minutes a week if there is no chest pain or breathlessness',
+               cautions:['Stop at once if there is chest pain, severe breathlessness or giddiness',
+                         'Avoid walking in the hot sun','Do not exercise within an hour of a meal'] },
+    lifestyle:['Weigh yourself every morning and write it down','Take every medicine at the same time each day',
+               'Keep a fixed bedtime and 7 to 8 hours of sleep','Keep a week’s tablet box so no dose is missed'],
+    monitoring:['Daily: weight','Twice a week: blood pressure and pulse',
+                hasC('diabetes')?'Daily: fasting and post-meal blood sugar':'Blood sugar as advised',
+                'Watch for: swelling of feet, increasing breathlessness']
+  };
+}
 
 /* ============================================================
    Language machinery — cached, incremental, pre-warmed.
@@ -1654,7 +1846,7 @@ RULES
 }
 
 /* One fetch per (kind, language); a second request joins the first. */
-function fetchLang(kind, lang){
+function fetchLang(kind, lang, bg){
   const key = kind+':'+lang;
   if(INFLIGHT[key]) return INFLIGHT[key];
   const cache = kind==='pt' ? PT_CACHE : DIET_CACHE;
@@ -1668,7 +1860,7 @@ function fetchLang(kind, lang){
 
   const p = gemini(
       [{text: kind==='pt' ? translatePtPrompt(src, lang) : dietPrompt(src, lang)}],
-      kind==='pt' ? SYS_TRANSLATE : SYS_DIET, 16000)
+      kind==='pt' ? SYS_TRANSLATE : SYS_DIET, 16000, bg)
     .then(raw=>{ const o=parseJSON(raw); cache[lang]=o; return o; })
     .finally(()=>{ delete INFLIGHT[key]; });
   INFLIGHT[key] = p;
@@ -1684,9 +1876,9 @@ async function prefetchLanguages(){
     for(const L of order){
       if(!prefetchOn || !EXTRA) return;
       if(langReady(kind,L) || langBusy(kind,L)) continue;
-      try{ await fetchLang(kind,L); paintLangPills(); }
+      try{ await fetchLang(kind,L,true); paintLangPills(); }
       catch(e){ console.warn('prefetch',kind,L,e && e.message); }
-      await new Promise(r=>setTimeout(r,250));
+      await new Promise(r=>setTimeout(r,1500));
     }
   }
 }
@@ -1815,7 +2007,9 @@ function renderDiet(targetEl, forceLang){
   sheet.className = 'sheet ' + (lang==='en' ? '' : (lang==='kn' ? 'lang-kn' : 'lang-in'));
 
   const dietEmpty = !arr(dt.avoid).length && !arr(dt.eat).length && !Object.keys(dt.meals||{}).some(k=>arr(dt.meals[k]).length);
-  const waiting = targetEl ? '' : langBusy('diet',lang) ? '<div class="pending">⏳ '+esc('Writing this sheet in '+(LANGS[lang]||LANGS.mr).label+'…')+'</div>'
+  const localNoteD = (EXTRA && EXTRA._local && /diet/.test(EXTRA._local))
+    ? '<div class="localnote">Written from the discharge record, not by the AI — tap a language above to have it rewritten.</div>' : '';
+  const waiting = targetEl ? localNoteD : langBusy('diet',lang) ? '<div class="pending">⏳ '+esc('Writing this sheet in '+(LANGS[lang]||LANGS.mr).label+'…')+'</div>'
     : (EXTRA && (EXTRA._pending||EXTRA._failed) ? '<div class="pending">'+(EXTRA._failed
         ? '⚠️ This page could not be written. Pick a language again to retry.'
         : '⏳ Being written now — the discharge summary on the first tab is ready.')+'</div>' : '');
@@ -1823,7 +2017,7 @@ function renderDiet(targetEl, forceLang){
   sheet.innerHTML =
     fmtHospital(d.hospital) + (targetEl?'':langBar(lang,'diet')) + waiting +
     (!targetEl && dietEmpty && !langBusy('diet',lang) ? '<div class="pending">⚠️ No diet sheet came back for this patient. Tap a language above to write one.</div>' : '') +
-    '<div class="doctitle">'+esc(U.title)+'</div>' +
+    '<div class="doctitle">'+esc(U.title)+'</div><div class="docby">Developed by Dr Gurunath Parale</div>' +
     `<div class="ptgrid">
       ${cell(U.pt, p.name,'wide')}
       ${cell(U.age, [p.age,p.sex].filter(has).join(' / '))}
@@ -1857,6 +2051,7 @@ function renderDiet(targetEl, forceLang){
        ${arr(dt.monitoring).length?'<div class="dbox" style="background:var(--slate-50);border:1px solid var(--slate-200)"><h5 style="color:var(--slate-700)">📊 '+esc(U.watch)+'</h5><ul>'+arr(dt.monitoring).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':''}
      </div>`:'') +
     signatureLite(U) + credit();
+  sheet.dataset.empty = dietEmpty ? '1' : '0';
   if(!targetEl){ wireLangBar(sheet); paintLangPills(); }
 }
 
@@ -2221,7 +2416,7 @@ async function ensureSelection(sel){
 function stageSelection(sel){
   const stage = $('printStage');
   stage.innerHTML = '';
-  const ids = [];
+  const ids = [], skipped = [];
   const add = (id, build) => {
     const el = document.createElement('div');
     el.id = id;
@@ -2230,11 +2425,13 @@ function stageSelection(sel){
     el.querySelectorAll('.rowtool,.addrow,.noprint').forEach(n=>n.remove());
     el.removeAttribute('contenteditable');
     el.querySelectorAll('[contenteditable]').forEach(n=>n.removeAttribute('contenteditable'));
+    if(el.dataset.empty === '1'){ el.remove(); skipped.push(id); return; }   // never print a blank sheet
     ids.push(id);
   };
   if(sel.doc) add('stgDoc', el=>{ el.className='sheet'; el.innerHTML=$('sheetDoc').innerHTML; });
   sel.pt.forEach(L   => add('stgPt_'+L,   el=>renderPatient(el, L)));
   sel.diet.forEach(L => add('stgDiet_'+L, el=>renderDiet(el, L)));
+  if(skipped.length) toast('<b>Note:</b> '+skipped.length+' page'+(skipped.length>1?'s were':' was')+' left out because nothing had been written for it yet.',7000);
   return ids;
 }
 function clearStage(){ const s=$('printStage'); if(s) s.innerHTML=''; }
@@ -2370,21 +2567,37 @@ async function generate(){
     window.scrollTo({top:$('output').offsetTop-70, behavior:'smooth'});
 
     status('Writing the patient page and diet sheet in '+(LANGS[lang]||LANGS.mr).label+'…');
-    try{
-      const raw2 = await gemini([{text: patientPrompt(DATA, lang)}], SYS_PATIENT, 32000);
-      const nx = parseJSON(raw2); nx._lang = lang; EXTRA = nx;
-      clearLangCaches(); seedCaches();
-      renderPatient(); renderDiet(); setEdit(editMode); paintLangPills();
-      status('',false);
-      toast('<b>✅ Patient page and diet sheet ready.</b>'+(prefetchOn?' The other languages are being prepared in the background.':''),5000);
-      if(prefetchOn) prefetchLanguages().then(paintLangPills);
-    }catch(e2){
-      console.warn('patient pass failed', e2);
-      EXTRA={patient:{},diet:{},_lang:lang,_failed:true};
-      renderPatient(); renderDiet(); setEdit(editMode);
-      status('',false);
-      toast('<b>Note:</b> the discharge summary is ready, but the patient and diet pages could not be written. Change the language and change it back to retry.', 10000);
+    let pack = null, why = '';
+    for(let attempt=1; attempt<=2 && !pack; attempt++){
+      try{
+        if(attempt>1) status('The first attempt came back incomplete — writing it again…');
+        const raw2 = await gemini([{text: patientPrompt(DATA, lang)}], SYS_PATIENT, 32000);
+        const cand = normalisePack(parseJSON(raw2), lang);
+        if(patientOk(cand) && dietOk(cand)) pack = cand;
+        else if(attempt===2) pack = cand;             // keep whatever we got, fill the gaps below
+        else why = 'incomplete';
+      }catch(e2){ why = (e2 && e2.message) || 'call failed'; console.warn('patient pass', attempt, e2); }
     }
+
+    // nothing usable may ever reach the printer: build the missing half from the record
+    const made = [];
+    if(!pack) pack = {patient:{},diet:{},_lang:lang};
+    if(!patientOk(pack)){ const fb = fallbackPatient(DATA); pack.patient = {en:fb, loc:fb}; made.push('patient page'); }
+    if(!dietOk(pack))   { pack.diet = fallbackDiet(DATA); made.push('diet sheet'); }
+    pack._lang = lang;
+    pack._local = made.length ? made.join(' and ') : '';
+    EXTRA = pack;
+    clearLangCaches(); seedCaches();
+    renderPatient(); renderDiet(); setEdit(editMode); paintLangPills();
+    status('',false);
+    if(made.length){
+      toast('<b>⚠️ The AI could not write the '+esc(made.join(' and '))+'.</b><br>'+
+            (why?esc(why)+'<br>':'')+
+            'A sheet built from the record itself is shown instead, in English — tap a language on that page to have it rewritten properly.', 13000);
+    } else {
+      toast('<b>✅ Patient page and diet sheet ready.</b>'+(prefetchOn?' The other languages are being prepared in the background.':''),5000);
+    }
+    if(prefetchOn) prefetchLanguages().then(paintLangPills);
   }catch(e){
     console.error(e);
     showErr('<b>⚠️ '+ (e.message||'Something went wrong') +'</b>');
@@ -2468,7 +2681,66 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('signDoc').addEventListener('change',e=>store.set('dsai_doc',e.target.value));
   $('signQual').addEventListener('change',e=>store.set('dsai_qual',e.target.value));
   $('apiKey').value = store.get('dsai_key')||'';
-  $('prefetchChk').checked = store.get('dsai_prefetch') !== '0';
+
+  // keys are saved the moment they are pasted, not only when a summary runs
+  function splitKeys(v){ return String(v||'').split(/[\s,;]+/).map(k=>k.trim()).filter(k=>k.length>20); }
+  function showKeyCount(){
+    const n = splitKeys($('apiKey').value).length;
+    $('keyState').innerHTML = n
+      ? '✅ '+n+' key'+(n>1?'s':'')+' saved in this browser — used in turn'
+      : '<span style="color:var(--slate-600);font-weight:500">No key of your own — using the built-in shared key</span>';
+  }
+  $('apiKey').addEventListener('input', ()=>{
+    store.set('dsai_key', $('apiKey').value.trim());
+    showKeyCount();
+    SPENT_KEYS.clear();                       // a new key deserves a fresh chance
+    if(store.get('dsai_prefetch')===null || store.get('dsai_prefetch')===''){
+      $('prefetchChk').checked = hasOwnKey(); prefetchOn = $('prefetchChk').checked;
+    }
+  });
+  showKeyCount();
+
+  $('keyTestBtn').onclick = async ()=>{
+    const keys = splitKeys($('apiKey').value);
+    const rep  = $('keyReport');
+    if(!keys.length){ rep.innerHTML = '<div class="kr warn"><b>—</b><span>No key pasted yet. The app is using the built-in shared key.</span></div>'; return; }
+    $('keyTestBtn').disabled = true; $('keyTestBtn').textContent = '⏳ Checking…';
+    rep.innerHTML = '';
+    for(let i=0;i<keys.length;i++){
+      const k = keys[i];
+      const tag = 'Key '+(i+1)+' …'+k.slice(-6);
+      const row = document.createElement('div'); row.className='kr'; row.innerHTML='<b>'+esc(tag)+'</b><span>checking…</span>';
+      rep.appendChild(row);
+      let cls='bad', msg='';
+      try{
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(k),{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({contents:[{parts:[{text:'hi'}]}],generationConfig:{maxOutputTokens:1}})
+        });
+        if(r.ok){ cls='ok'; msg='working — ready to use'; }
+        else{
+          const e = await r.json().catch(()=>({}));
+          const m = (e.error&&e.error.message)||('HTTP '+r.status);
+          if(r.status===429 && /per\s*day|daily/i.test(m)){ cls='bad'; msg='daily quota finished — it resets at midnight Pacific time'; }
+          else if(r.status===429){ cls='warn'; msg='valid, but rate-limited right now — it will work again in a minute'; }
+          else if(r.status===400 || r.status===401 || r.status===403){ cls='bad'; msg='rejected — check the key was copied in full'; }
+          else { cls='warn'; msg=m.slice(0,90); }
+        }
+      }catch(err){ cls='bad'; msg='could not reach Google — check the internet connection'; }
+      row.className = 'kr '+cls;
+      row.innerHTML = '<b>'+esc(tag)+'</b><span>'+esc(msg)+'</span>';
+      await new Promise(r=>setTimeout(r,500));
+    }
+    const okN = rep.querySelectorAll('.kr.ok').length;
+    const note = document.createElement('div'); note.className='kr';
+    note.innerHTML = '<b>Σ</b><span>'+okN+' of '+keys.length+' working. Remember: keys made in the <b>same</b> Google Cloud project share one quota — make each key in its own project to actually add capacity.</span>';
+    rep.appendChild(note);
+    $('keyTestBtn').disabled = false; $('keyTestBtn').textContent = '🔎 Check my keys';
+  };
+  // default: on only with the doctor's own key — the shared key's per-minute
+  // allowance is better spent on the summaries themselves
+  const savedPf = store.get('dsai_prefetch');
+  $('prefetchChk').checked = savedPf === '1' ? true : savedPf === '0' ? false : hasOwnKey();
   prefetchOn = $('prefetchChk').checked;
   $('prefetchChk').addEventListener('change', e=>{
     prefetchOn = e.target.checked;
